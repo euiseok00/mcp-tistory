@@ -12,6 +12,6 @@ services:
     restart: unless-stopped
 
   tunnel:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:2026.10.5
     command: tunnel --no-autoupdate --url http://mcp:3000
     restart: unless-stopped
