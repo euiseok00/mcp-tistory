@@ -15,8 +15,8 @@ function required(name: string): string {
 }
 
 const PORT = Number(process.env.PORT ?? 3000);
-// 외부에서 보이는 주소 (quick tunnel URL). 바뀌면 재시작 후 커넥터 재등록
-if (process.env.PUBLIC_URL === '') throw new Error('PUBLIC_URL이 비어 있습니다. npm run up으로 실행하세요.');
+// 외부에서 보이는 주소 (Tailscale Funnel 고정 URL)
+if (process.env.PUBLIC_URL === '') throw new Error('PUBLIC_URL이 비어 있습니다. .env에 Tailscale 주소를 넣으세요.');
 const PUBLIC_URL = new URL(process.env.PUBLIC_URL ?? `http://localhost:${PORT}`);
 const MCP_URL = new URL('/mcp', PUBLIC_URL);
 const passphrase = required('OWNER_PASSPHRASE');
@@ -29,7 +29,7 @@ const app = createMcpExpressApp({
   host: '0.0.0.0',
   allowedHosts: [...new Set([PUBLIC_URL.hostname, 'localhost', '127.0.0.1'])],
 });
-app.set('trust proxy', 1); // cloudflared 1단계 뒤에 있음. rate limit이 실제 IP를 보게 한다
+app.set('trust proxy', 1); // Funnel 프록시 1단계 뒤에 있음. rate limit이 실제 IP를 보게 한다
 
 app.use(mcpAuthRouter({ provider: auth, issuerUrl: PUBLIC_URL, resourceServerUrl: MCP_URL, resourceName: 'Tistory MCP' }));
 
@@ -42,7 +42,7 @@ app.post('/consent', express.urlencoded({ extended: false }), (req, res) => {
 
 const bearer = requireBearerAuth({ verifier: auth, resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(MCP_URL) });
 
-// stateless + JSON 응답: quick tunnel이 SSE를 지원하지 않는다
+// stateless + JSON 응답: 터널 종류와 무관하게 단순하게 유지
 app.post('/mcp', bearer, async (req, res) => {
   const server = new McpServer({ name: 'tistory-mcp', version: '1.0.0' });
   registerWritePost(server, tistory);
