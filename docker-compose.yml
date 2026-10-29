@@ -26,9 +26,13 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-}
       PORT: "3000"
       TISTORY_COOKIE_FILE: /run/secrets/tistory_cookie.txt
+      # 재빌드·재시작해도 커넥터 재인가가 필요 없게 OAuth 상태를 볼륨에 둔다
+      OAUTH_STATE_FILE: /app/data/oauth.json
     volumes:
       - ./secrets:/run/secrets:ro
+      - mcp-state:/app/data
     restart: unless-stopped
 
 volumes:
   tailscale-state:
+  mcp-state:

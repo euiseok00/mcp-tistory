@@ -1,4 +1,7 @@
 import { test } from 'node:test';
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { markdownToTistoryHtml } from './markdown.js';
 import { parseDraftResponse, TistoryError, type TistoryClient } from './tistory.js';
@@ -110,6 +113,25 @@ test('auth: 패스프레이즈 확인, 실패 잠금, 코드 1회 사용, 토큰
   const refreshed = await p.exchangeRefreshToken(client, tokens.refresh_token!);
   assert.ok(refreshed.access_token);
   await assert.rejects(p.exchangeRefreshToken(client, tokens.refresh_token!)); // 회전됨
+
+  // 상태 파일: 재시작해도 토큰 유지, 주소가 바뀌면 폐기
+  const file = join(mkdtempSync(join(tmpdir(), 'oauth-')), 'state.json');
+  const p1 = new OwnerAuthProvider('correct horse battery', resource, file);
+  await p1.clientsStore.registerClient(client as never);
+  const r1 = await p1.consent(await (async () => {
+    let html = '';
+    await p1.authorize(client, { codeChallenge: 'ch', redirectUri: client.redirect_uris[0] },
+      { type: () => ({ send: (h: string) => { html = h; } }) } as never);
+    return /name="request_id" value="([0-9a-f]+)"/.exec(html)![1];
+  })(), 'correct horse battery') as { redirect: string };
+  const t1 = await p1.exchangeAuthorizationCode(client, new URL(r1.redirect).searchParams.get('code')!);
+  assert.doesNotMatch(readFileSync(file, 'utf8'), new RegExp(t1.access_token));
+  const p2 = new OwnerAuthProvider('correct horse battery', resource, file);
+  assert.ok(p2.clientsStore.getClient('c1'));
+  await p2.verifyAccessToken(t1.access_token);
+  assert.ok((await p2.exchangeRefreshToken(client, t1.refresh_token!)).access_token);
+  const p3 = new OwnerAuthProvider('correct horse battery', new URL('https://other.example/mcp'), file);
+  await assert.rejects(p3.verifyAccessToken(t1.access_token));
 
   // 5회 실패 시 정답도 잠김
   const req2 = await startAuth();

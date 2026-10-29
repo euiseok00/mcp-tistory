@@ -23,7 +23,7 @@ const passphrase = required('OWNER_PASSPHRASE');
 if (passphrase.length < 16) throw new Error('OWNER_PASSPHRASE는 16자 이상이어야 합니다.');
 
 const tistory = new CookieTistoryClient(required('TISTORY_BLOG_NAME'), cookieSource(process.env));
-const auth = new OwnerAuthProvider(passphrase, MCP_URL);
+const auth = new OwnerAuthProvider(passphrase, MCP_URL, process.env.OAUTH_STATE_FILE || undefined);
 
 const app = createMcpExpressApp({
   host: '0.0.0.0',

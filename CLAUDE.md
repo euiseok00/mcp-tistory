@@ -20,7 +20,7 @@ CI(`.github/workflows/ci.yml`)는 push마다 `tsc --noEmit` + `npm test`.
 | 파일 | 역할 |
 |---|---|
 | `src/index.ts` | Express 앱. `mcpAuthRouter`, `/consent`, `POST /mcp`(Bearer 필수). GET/DELETE `/mcp`는 405 |
-| `src/auth.ts` | 내장 OAuth 인가 서버 `OwnerAuthProvider`. 메모리 저장, 패스프레이즈 폼, 5회 실패 시 15분 잠금 |
+| `src/auth.ts` | 내장 OAuth 인가 서버 `OwnerAuthProvider`. 클라이언트·토큰 해시는 상태 파일, 패스프레이즈 폼, 5회 실패 시 15분 잠금 |
 | `src/tool.ts` | `tistory_write_post` 등록, 입력 검증(`INVALID_INPUT`), 작성 지침이 담긴 도구 설명 |
 | `src/markdown.ts` | `marked` → `sanitize-html` 허용 목록. h2/h3에 `section-N` id 부여 + 목차 자동 삽입, span color는 2색만 |
 | `src/tistory.ts` | `TistoryClient` 인터페이스 + `CookieTistoryClient`, 응답 분류 `parseDraftResponse` |
@@ -29,7 +29,7 @@ CI(`.github/workflows/ci.yml`)는 push마다 `tsc --noEmit` + `npm test`.
 ## 핵심 결정과 이유 (바꾸기 전에 확인)
 
 - **stateless + `enableJsonResponse: true`**: 원래 Cloudflare quick tunnel이 SSE를 지원하지 않아 택했다. Funnel에선 제약이 없지만 단순해서 유지.
-- **OAuth 상태는 메모리에만**: 재시작 시 재인가 필요. URL이 고정된 지금은 영속 저장하면 재인가를 없앨 수 있다(미적용).
+- **OAuth 상태 파일 저장**: `OAUTH_STATE_FILE`(Docker는 `mcp-state` 볼륨의 `/app/data/oauth.json`)에 클라이언트와 토큰 SHA-256 해시를 저장. 재빌드해도 재인가 불필요. `PUBLIC_URL`이 바뀌면 토큰 폐기. 인가 대기·코드·실패 잠금은 메모리.
 - **`PUBLIC_URL`**: `.env`에 Funnel 고정 주소(`https://tistory-mcp.<tailnet>.ts.net`). 빈 값이면 서버가 시작을 거부한다.
 - **도구는 1개만**: `tistory_write_post`. 대화 구간 선택은 Claude가 하고, 서버는 대화를 볼 수 없다.
 - **INVALID_INPUT은 핸들러에서 검사**: zod 스키마에 길이 제한을 넣으면 SDK가 프로토콜 오류로 바꿔 버려 `{ok:false, errorCode}` 형식이 깨진다.
@@ -59,7 +59,7 @@ CI(`.github/workflows/ci.yml`)는 push마다 `tsc --noEmit` + `npm test`.
 
 ## 고려사항 / 미해결
 
-- **실행 절차**: Funnel로 URL 고정, 커넥터 1회 등록. 재시작 시 재인가만 남음.
+- **실행 절차**: Funnel로 URL 고정, 커넥터 1회 등록·인가. 코드 수정 후 `npm run up`만.
   - 대안: Claude 데스크톱 + stdio → 터널·OAuth·Docker 불필요, 단 웹 사용 불가.
 - **쿠키 수명 미확인**: 만료 주기 모름. 자동 로그인은 카카오 2차 인증 때문에 비현실적.
 - **잠금 DoS**: 패스프레이즈 실패 잠금이 전역이라 제3자가 일부러 틀리면 소유자도 15분 잠긴다. 개인용이라 감수.

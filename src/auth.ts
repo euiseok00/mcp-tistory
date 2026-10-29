@@ -1,4 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import type { Response } from 'express';
 import type { AuthorizationParams, OAuthServerProvider } from '@modelcontextprotocol/sdk/server/auth/provider.js';
 import type { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/server/auth/clients.js';
@@ -18,6 +19,16 @@ type Token = { clientId: string; scopes: string[]; resource: URL; expiresAt?: nu
 
 const newSecret = () => randomBytes(32).toString('hex');
 const sha256 = (s: string) => createHash('sha256').update(s).digest();
+// 토큰은 해시로만 보관한다. 상태 파일이 새어도 토큰 원문은 나오지 않는다
+const tokenKey = (t: string) => sha256(t).toString('hex');
+
+type StoredToken = Omit<Token, 'resource'>;
+type State = {
+  resource: string;
+  clients: OAuthClientInformationFull[];
+  accessTokens: [string, StoredToken][];
+  refreshTokens: [string, StoredToken][];
+};
 
 // 길이가 달라도 비교 시간이 같도록 해시끼리 비교
 export function passphraseMatches(input: string, expected: string): boolean {
@@ -25,22 +36,25 @@ export function passphraseMatches(input: string, expected: string): boolean {
 }
 
 class MemoryClientsStore implements OAuthRegisteredClientsStore {
-  private clients = new Map<string, OAuthClientInformationFull>();
+  constructor(private readonly onChange: () => void) {}
+  readonly clients = new Map<string, OAuthClientInformationFull>();
   getClient(clientId: string) {
     return this.clients.get(clientId);
   }
   registerClient(client: OAuthClientInformationFull) {
     this.clients.set(client.client_id, client);
+    this.onChange();
     return client;
   }
 }
 
 /**
- * 소유자 1명용 내장 인가 서버. 상태는 메모리에만 둔다.
- * 재시작하면 tunnel URL과 커넥터가 바뀌므로 토큰도 새로 받는 것이 정상이다.
+ * 소유자 1명용 내장 인가 서버.
+ * stateFile을 주면 클라이언트와 토큰을 파일에 저장해 재시작해도 재인가가 필요 없다.
+ * 인가 대기·코드·실패 횟수는 수명이 짧아 메모리에만 둔다.
  */
 export class OwnerAuthProvider implements OAuthServerProvider {
-  readonly clientsStore = new MemoryClientsStore();
+  readonly clientsStore = new MemoryClientsStore(() => this.save());
   private pending = new Map<string, Pending>();
   private codes = new Map<string, Code>();
   private accessTokens = new Map<string, Token>();
@@ -51,7 +65,39 @@ export class OwnerAuthProvider implements OAuthServerProvider {
   constructor(
     private readonly passphrase: string,
     private readonly resource: URL,
-  ) {}
+    private readonly stateFile?: string,
+  ) {
+    this.load();
+  }
+
+  // 주소(PUBLIC_URL)가 바뀌었으면 기존 토큰은 버린다
+  private load() {
+    if (!this.stateFile || !existsSync(this.stateFile)) return;
+    const state = JSON.parse(readFileSync(this.stateFile, 'utf8')) as State;
+    if (state.resource !== this.resource.href) return;
+    for (const c of state.clients) this.clientsStore.clients.set(c.client_id, c);
+    const revive = (entries: [string, StoredToken][]) =>
+      new Map(entries.map(([k, t]) => [k, { ...t, resource: this.resource }] as const));
+    this.accessTokens = revive(state.accessTokens);
+    this.refreshTokens = revive(state.refreshTokens);
+  }
+
+  private save() {
+    if (!this.stateFile) return;
+    const now = Date.now() / 1000;
+    const strip = (m: Map<string, Token>) =>
+      [...m].filter(([, t]) => !t.expiresAt || t.expiresAt > now).map(([k, { resource: _, ...t }]) => [k, t]);
+    const state = {
+      resource: this.resource.href,
+      clients: [...this.clientsStore.clients.values()],
+      accessTokens: strip(this.accessTokens),
+      refreshTokens: strip(this.refreshTokens),
+    };
+    // 쓰다 죽어도 기존 파일이 깨지지 않게 임시 파일 후 교체
+    const tmp = `${this.stateFile}.tmp`;
+    writeFileSync(tmp, JSON.stringify(state), { mode: 0o600 });
+    renameSync(tmp, this.stateFile);
+  }
 
   async authorize(client: OAuthClientInformationFull, params: AuthorizationParams, res: Response): Promise<void> {
     if (params.resource && params.resource.href !== this.resource.href) {
@@ -101,16 +147,17 @@ export class OwnerAuthProvider implements OAuthServerProvider {
   }
 
   async exchangeRefreshToken(client: OAuthClientInformationFull, refreshToken: string): Promise<OAuthTokens> {
-    const data = this.refreshTokens.get(refreshToken);
+    const key = tokenKey(refreshToken);
+    const data = this.refreshTokens.get(key);
     if (!data || data.clientId !== client.client_id) throw new InvalidGrantError('Invalid refresh token');
-    this.refreshTokens.delete(refreshToken); // 회전: 한 번 쓴 refresh token은 폐기
+    this.refreshTokens.delete(key); // 회전: 한 번 쓴 refresh token은 폐기
     return this.issueTokens(client.client_id, data.scopes);
   }
 
   async verifyAccessToken(token: string): Promise<AuthInfo> {
-    const data = this.accessTokens.get(token);
+    const data = this.accessTokens.get(tokenKey(token));
     if (!data || !data.expiresAt || data.expiresAt < Date.now() / 1000) {
-      this.accessTokens.delete(token);
+      this.accessTokens.delete(tokenKey(token));
       throw new InvalidTokenError('Invalid or expired token');
     }
     return { token, ...data };
@@ -128,8 +175,9 @@ export class OwnerAuthProvider implements OAuthServerProvider {
     const access = newSecret();
     const refresh = newSecret();
     const base = { clientId, scopes, resource: this.resource };
-    this.accessTokens.set(access, { ...base, expiresAt: Math.floor(Date.now() / 1000) + ACCESS_TTL_S });
-    this.refreshTokens.set(refresh, base);
+    this.accessTokens.set(tokenKey(access), { ...base, expiresAt: Math.floor(Date.now() / 1000) + ACCESS_TTL_S });
+    this.refreshTokens.set(tokenKey(refresh), base);
+    this.save();
     return { access_token: access, token_type: 'bearer', expires_in: ACCESS_TTL_S, refresh_token: refresh, scope: scopes.join(' ') };
   }
 }
