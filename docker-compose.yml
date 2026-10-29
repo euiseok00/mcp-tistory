@@ -1,0 +1,17 @@
+services:
+  mcp:
+    build: .
+    env_file: .env
+    environment:
+      # scripts/up.mjs가 터널 URL을 채운다. 비어 있으면 서버가 시작을 거부한다
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      PORT: "3000"
+      TISTORY_COOKIE_FILE: /run/secrets/tistory_cookie.txt
+    volumes:
+      - ./secrets:/run/secrets:ro
+    restart: unless-stopped
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://mcp:3000
+    restart: unless-stopped
