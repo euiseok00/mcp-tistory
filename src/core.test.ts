@@ -10,12 +10,44 @@ test('markdown: 티스토리 구조 유지, 위험 HTML 제거', () => {
     '## 제목\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n```javascript\nconst a = 1;\n```\n\n> 인용\n\n' +
       '[링크](https://example.com) [나쁜](javascript:alert(1)) <script>alert(1)</script><img src=x onerror=alert(1)>',
   );
-  assert.match(html, /<h2>제목<\/h2>/);
-  assert.match(html, /<table>[\s\S]*<th>A<\/th>/);
+  assert.match(html, /<h2 id="section-1" style="[^"]*font-weight:700[^"]*">제목<\/h2>/);
+  assert.match(html, /<table style="[^"]*">[\s\S]*<th style="[^"]*background:#f3f4f6[^"]*">A<\/th>/);
   assert.match(html, /<pre><code class="language-javascript">const a = 1;/);
-  assert.match(html, /<blockquote>/);
+  assert.match(html, /<blockquote data-ke-style="style3" style="border-left:4px solid #999999/);
   assert.match(html, /<a href="https:\/\/example.com">링크<\/a>/);
   assert.doesNotMatch(html, /<script|javascript:|<img|onerror/);
+});
+
+test('markdown: 목차 자동 생성, 색상은 두 가지만 허용', () => {
+  const html = markdownToTistoryHtml(
+    '## 1. 가\n\n### 1.1 나\n\n## 2. [다](https://x.com)\n\n' +
+      '<span style="color:#006dd7">파랑</span> <span style="color:#ee2323">빨강</span> ' +
+      '<span style="color:#00ff00;font-size:40px">초록</span>',
+  );
+  assert.match(html, /^<h2 style="[^"]*"><span style="font-size:1.25em">📑<\/span> 목차<\/h2>/);
+  assert.match(html, /<p style="font-size:1.15em"><a href="#section-1" style="color:#000000;text-decoration:none"><strong>1. 가<\/strong><\/a><\/p>/);
+  assert.match(html, /<p style="font-size:0.95em;padding-left:1.5em"><a href="#section-2" style="color:#000000;text-decoration:none">1.1 나<\/a><\/p>/);
+  assert.match(html, /<a href="#section-3"[^>]*><strong>2. 다<\/strong>/);
+  assert.match(html, /<h3 id="section-2" style="[^"]*">1.1 나<\/h3>/);
+  assert.match(html, /<span style="color:#006dd7">파랑<\/span>/);
+  assert.match(html, /<span style="color:#ee2323">빨강<\/span>/);
+  assert.doesNotMatch(html, /00ff00|40px/);
+  assert.equal(markdownToTistoryHtml('본문만').includes('목차'), false);
+  // hr 제거, 이모지 확대(코드블록 안은 그대로)
+  const more = markdownToTistoryHtml('가\n\n---\n\n⚠️ 주의\n\n```\n✅\n```');
+  assert.doesNotMatch(more, /<hr/);
+  assert.match(more, /<span style="font-size:1.25em">⚠️<\/span> 주의/);
+  assert.match(more, /<code>✅/);
+  // 목차는 도입 뒤에, 박스 색은 첫 이모지로
+  const intro = markdownToTistoryHtml('도입 문장\n\n## 1. 가\n\n> ⚠️ 주의\n\n> 💡 팁');
+  assert.ok(intro.startsWith('<p>도입 문장</p>'));
+  assert.ok(intro.indexOf('목차') < intro.indexOf('id="section-1"'));
+  assert.match(intro, /<blockquote [^>]*border-left:4px solid #ee2323;background:#fdecec[^>]*>\s*<p><span style="font-size:1.25em">⚠️/);
+  assert.match(intro, /border-left:4px solid #f5b400/);
+  // marked가 놓친 굵게 보정, 코드 안은 그대로
+  const bold = markdownToTistoryHtml('핵심은 **"방법"**라는 점\n\n`**a**`');
+  assert.match(bold, /핵심은 <strong>"방법"<\/strong>라는 점/);
+  assert.match(bold, /<code>\*\*a\*\*<\/code>/);
 });
 
 test('parseDraftResponse: 응답 분류', () => {
