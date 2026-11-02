@@ -20,8 +20,9 @@ Claude와 공부하거나 문제를 해결한 대화를 블로그에 옮기려�
 > 💬 "이 대화를 티스토리에 임시저장해줘"
 
 1. Claude가 대화를 정해진 템플릿에 맞춰 제목과 마크다운 본문으로 정리합니다.
-2. 서버가 목차·서식을 붙여 티스토리 HTML로 바꾸고 **임시저장**합니다.
-3. 티스토리 임시저장함에서 검토한 뒤 직접 발행합니다. 서버는 발행하지 않습니다.
+2. 서버가 목차·서식을 붙여 티스토리 HTML로 바꾸고 **일회용 링크**를 돌려줍니다.
+3. 링크에서 미리보기를 확인하고 **임시저장** 버튼을 누르면 Chrome 확장 프로그램이 저장합니다.
+4. 티스토리 임시저장함에서 검토한 뒤 직접 발행합니다.
 
 **이런 분께 맞습니다:** 티스토리 블로그를 운영하고, Claude Pro 이상을 쓰며, Docker를 실행할 수 있는 분.
 
@@ -43,12 +44,13 @@ Claude와 공부하거나 문제를 해결한 대화를 블로그에 옮기려�
 flowchart LR
     A[Claude 웹<br/>커스텀 커넥터] -- HTTPS --> B[Tailscale<br/>Funnel]
     B --> C[MCP 서버<br/>Docker]
-    C -- 로그인 쿠키 --> D[(티스토리<br/>임시저장)]
     C -. OAuth 인가 .- A
+    C -- 일회용 링크 --> E[Chrome<br/>확장 프로그램]
+    E -- 브라우저 로그인 세션 --> D[(티스토리<br/>임시저장)]
 ```
 
 - **Claude → 서버:** 서버에 OAuth 인가 서버가 들어 있습니다. 처음 연결할 때 내가 정한 패스프레이즈를 입력해 승인합니다.
-- **서버 → 티스토리:** 티스토리 Open API가 종료되어, 브라우저 로그인 쿠키로 에디터가 쓰는 내부 API를 호출합니다.
+- **확장 프로그램 → 티스토리:** 티스토리 Open API가 종료되어, 에디터가 쓰는 내부 API를 브라우저 로그인 세션으로 호출합니다. 쿠키를 읽거나 서버로 보내지 않습니다.
 - **외부 공개:** Tailscale Funnel이 내 PC의 서버를 고정 HTTPS 주소(`https://tistory-mcp.<tailnet>.ts.net`)로 공개합니다. 무료이고 도메인이 필요 없습니다.
 
 ## 🚀 설치와 실행
@@ -68,7 +70,6 @@ flowchart LR
 git clone https://github.com/euiseok00/mcp-tistory.git
 cd mcp-tistory
 cp .env.example .env
-mkdir secrets
 ```
 
 ### 3. Tailscale 준비 (최초 1회)
@@ -78,21 +79,16 @@ mkdir secrets
 3. **Settings → Keys → Generate auth key**로 인증 키를 만듭니다.
 4. **DNS** 화면에서 tailnet 이름을 확인합니다. 예: `tail1234.ts.net` → 서버 주소는 `https://tistory-mcp.tail1234.ts.net`
 
-### 4. 티스토리 쿠키 넣기
+### 4. 확장 프로그램 설치
 
-1. 브라우저로 티스토리에 로그인하고 `https://{블로그명}.tistory.com/manage`에 들어갑니다.
-2. 개발자 도구(F12) → **Network** 탭 → 새로고침 → `manage` 요청을 클릭합니다.
-3. **Request Headers**의 `cookie` 값 전체를 복사해 `secrets/tistory_cookie.txt`에 붙여넣습니다.
-
-> [!WARNING]
-> 이 쿠키는 내 티스토리 계정 로그인 그 자체입니다. 다른 사람과 공유하거나 커밋하지 마세요. `secrets/`는 `.gitignore`와 `.dockerignore`에 들어 있습니다.
+1. `extension/manifest.json`의 `tistory-mcp.<tailnet>.ts.net` 두 곳을 3단계에서 확인한 주소로 바꿉니다.
+2. `chrome://extensions`에서 개발자 모드를 켜고, **압축해제된 확장 프로그램 로드**로 `extension` 폴더를 선택합니다.
+3. 브라우저로 티스토리에 로그인합니다.
 
 ### 5. `.env` 작성
 
 ```ini
 OWNER_PASSPHRASE=16자-이상의-긴-패스프레이즈    # 커넥터 연결 승인용
-TISTORY_BLOG_NAME=myblog                      # https://myblog.tistory.com 이면 myblog
-TISTORY_COOKIE_FILE=./secrets/tistory_cookie.txt
 PUBLIC_URL=https://tistory-mcp.tail1234.ts.net # 3단계에서 확인한 주소
 TS_AUTHKEY=tskey-auth-...                      # 첫 실행 후에는 지워도 됨
 ```
@@ -115,7 +111,7 @@ https://tistory-mcp.<tailnet>.ts.net/.well-known/oauth-authorization-server
 1. Claude 웹 → **설정 → 커넥터 → 커스텀 커넥터 추가**
 2. URL에 `https://tistory-mcp.<tailnet>.ts.net/mcp` 입력 → **연결**
 3. 뜨는 인가 화면에서 `OWNER_PASSPHRASE`를 입력하고 **허용**
-4. 새 채팅에서 *"이 대화를 티스토리에 임시저장해줘"*
+4. 새 채팅에서 *"이 대화를 티스토리에 임시저장해줘"* → 받은 링크를 열어 **임시저장** 클릭
 
 > [!NOTE]
 > 주소가 고정이라 커넥터 등록과 인가는 한 번이면 됩니다. 인가 정보는 `mcp-state` 볼륨에 저장되어 코드를 고치고 `npm run up`으로 다시 빌드해도 유지됩니다. `docker compose down -v`로 볼륨을 지우면 다시 연결해야 합니다.
@@ -150,8 +146,10 @@ https://tistory-mcp.<tailnet>.ts.net/.well-known/oauth-authorization-server
 |---|---|
 | 커넥터 추가 시 404 / 연결 실패 | 서버가 재시작 중이었거나 아직 준비 전입니다. 위 `.well-known` 주소가 열리는지 확인한 뒤 커넥터를 삭제하고 다시 추가하세요. |
 | 403 응답 | `.env`의 `PUBLIC_URL`이 실제 Tailscale 주소와 다릅니다. 고친 뒤 `npm run up`. |
-| `SESSION_EXPIRED` | 티스토리 쿠키가 만료되었습니다. 4단계대로 쿠키 파일만 교체하면 됩니다(재시작 불필요). |
-| `TISTORY_REJECTED` / `UNKNOWN` | 티스토리가 요청을 거부했거나 내부 API가 바뀌었을 수 있습니다. `docker compose logs mcp`로 결과 코드를 확인하세요. |
+| 링크에 로그인 안내가 표시됨 | 티스토리에 다시 로그인하고 링크 페이지를 새로고침하세요. |
+| 링크에 설치 안내가 표시됨 | 확장 프로그램이 없거나 `manifest.json`의 주소가 서버 주소와 다릅니다. |
+| 링크 만료 | 링크는 30분간 유효하고, 저장 후나 서버 재시작 후에는 쓸 수 없습니다. Claude에 다시 요청하세요. |
+| 저장 실패 안내가 반복됨 | 티스토리가 요청을 거부했거나 내부 API가 바뀌었을 수 있습니다. |
 | `INVALID_INPUT` | 제목(50자) 또는 본문(50,000자) 길이를 넘었습니다. 구간을 나눠 요청하세요. |
 | 인증서 오류(`not able to issue TLS certs`) | Tailscale DNS 설정에서 HTTPS Certificates가 꺼져 있습니다. |
 
@@ -161,12 +159,13 @@ https://tistory-mcp.<tailnet>.ts.net/.well-known/oauth-authorization-server
 - 🔑 커넥터 연결은 `OWNER_PASSPHRASE`를 아는 사람만 승인할 수 있습니다. 5회 틀리면 15분 잠깁니다.
 - 🎟️ access token 1시간, refresh token은 사용할 때마다 교체됩니다.
 - 🧹 본문의 `<script>`, 이벤트 속성, `javascript:` 링크 등 위험한 HTML은 저장 전에 제거됩니다.
-- 📵 로그에는 제목·본문 길이와 결과 코드만 남고, 본문·쿠키·토큰은 남지 않습니다.
+- 🔗 링크를 아는 사람은 30분 동안 글을 볼 수 있습니다. 저장은 확장 프로그램에서 버튼을 눌러야만 이뤄집니다.
+- 📵 로그에는 제목·본문 길이와 결과 코드만 남고, 본문·토큰은 남지 않습니다.
 
 ## ⚠️ 한계
 
 - **비공식 API:** 티스토리 Open API가 종료되어 에디터 내부 API를 씁니다. 예고 없이 동작하지 않을 수 있고, 약관상 회색지대입니다. 본인 책임으로 사용하세요.
-- **쿠키 수동 갱신:** 카카오 2차 인증 때문에 자동 로그인은 지원하지 않습니다.
+- **클릭 필요:** 저장하려면 링크를 열고 버튼을 눌러야 합니다. PC Chrome만 지원합니다.
 - **이미지 미지원:** 글에는 텍스트·표·코드만 들어갑니다.
 - **긴 대화:** 대화 앞부분이 압축되면 Claude가 지정 구간을 정확히 못 볼 수 있습니다.
 
@@ -187,7 +186,8 @@ npx tsc --noEmit
 | `src/auth.ts` | 내장 OAuth 인가 서버 (패스프레이즈 승인) |
 | `src/tool.ts` | `tistory_write_post` 도구와 기본 템플릿 |
 | `src/markdown.ts` | 마크다운 → 티스토리 HTML (목차, 이모지, 색상 제한, 위험 HTML 제거) |
-| `src/tistory.ts` | 티스토리 임시저장 API 호출과 응답 분류 |
+| `src/jobs.ts` | 일회용 링크 작업 저장소, 미리보기 페이지, 확장 프로그램용 API |
+| `extension/` | 티스토리 임시저장 호출과 응답 분류 (Chrome MV3) |
 | `docker-compose.yml`, `tailscale/serve.json` | 서버 + Tailscale Funnel |
 
 ## 🗺️ 로드맵

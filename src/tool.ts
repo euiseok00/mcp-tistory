@@ -2,7 +2,6 @@ import * as z from 'zod/v4';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { COLOR_IMPORTANT, COLOR_WARNING, markdownToTistoryHtml } from './markdown.js';
 import type { JobStore } from './jobs.js';
-import type { ErrorCode } from './tistory.js';
 
 export const TITLE_MAX = 50;
 export const CONTENT_MAX = 50_000;
@@ -39,6 +38,8 @@ const DESCRIPTION = `현재 대화(또는 사용자가 지정한 구간)를 정�
   - 중요: <span style="color:${COLOR_IMPORTANT}">내용</span>
   - 주의가 필요한 중요: <span style="color:${COLOR_WARNING}">내용</span>
 - "정리"는 표로, 본문 대주제마다 한 행씩 빠짐없이 핵심을 요약한다. 복습 방법 같은 주제 밖 행은 넣지 않는다.`;
+
+export type ErrorCode = 'INVALID_INPUT' | 'SERVER_BUSY' | 'UNKNOWN';
 
 export type WritePostResult =
   | { ok: true; url: string; expiresAt: string; title: string }

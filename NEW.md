@@ -91,10 +91,10 @@
 1. **Extension 단독 PoC:** 완료 (검증 1~5).
 2. **서버 전환:** 구현 완료. `src/jobs.ts`, `tool.ts`.
 3. **Extension 연동:** 완료 (검증 6~7). `extension/`.
-4. **기존 코드 제거:** `src/auth.ts`, `CookieTistoryClient`, 쿠키 파일 설정, 커밋 전 `keepAlive`·쿠키 되쓰기 코드. `src/auth.ts`를 제거하면 `/mcp`가 인증 없이 열린다.
-5. **공개 배포:** 호스팅 선정, Chrome 웹 스토어 심사, 약관 검토, `manifest.json`에서 `localhost` 제거.
+4. **쿠키 코드 제거:** 완료. 필요하면 커밋 `68c4e35`에서 복구한다.
+5. **공개 배포:** `src/auth.ts` 제거(이때 `/mcp`가 인증 없이 열린다), 호스팅 선정, Chrome 웹 스토어 심사, 약관 검토, `manifest.json`에서 `localhost` 제거.
 
-검증 7은 통과했고 4단계부터 남았다. 4단계 전까지 `/mcp`는 기존 커넥터의 OAuth로 보호된다.
+5단계 전까지 `/mcp`는 기존 커넥터의 OAuth로 보호된다.
 
 ## 7. 범위 밖
 

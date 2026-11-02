@@ -6,7 +6,6 @@ import assert from 'node:assert/strict';
 import { markdownToTistoryHtml } from './markdown.js';
 import express from 'express';
 import type { AddressInfo } from 'node:net';
-import { mergeSetCookies, parseDraftResponse, TistoryError } from './tistory.js';
 import { writePost } from './tool.js';
 import { JOB_MAX, JOB_TTL_MS, JobStore, LEASE_MS, jobRouter, previewPage } from './jobs.js';
 import { classifyDraft, parseBlogs } from '../extension/classify.js';
@@ -60,23 +59,6 @@ test('markdown: 목차 자동 생성, 색상은 두 가지만 허용', () => {
   const bold = markdownToTistoryHtml('핵심은 **"방법"**라는 점\n\n`**a**`');
   assert.match(bold, /핵심은 <strong>"방법"<\/strong>라는 점/);
   assert.match(bold, /<code>\*\*a\*\*<\/code>/);
-});
-
-test('parseDraftResponse: 응답 분류', () => {
-  assert.deepEqual(parseDraftResponse(200, '{"success":true,"total":3,"draft":{"sequence":13}}'), { draftId: 13 });
-  const code = (status: number, body: string) => {
-    try {
-      parseDraftResponse(status, body);
-    } catch (e) {
-      return (e as TistoryError).code;
-    }
-  };
-  assert.equal(code(302, ''), 'SESSION_EXPIRED');
-  assert.equal(code(401, ''), 'SESSION_EXPIRED');
-  assert.equal(code(200, '<html>login</html>'), 'SESSION_EXPIRED');
-  assert.equal(code(400, '{"success":false}'), 'TISTORY_REJECTED');
-  assert.equal(code(200, '{"success":false}'), 'TISTORY_REJECTED');
-  assert.equal(code(500, 'oops'), 'UNKNOWN');
 });
 
 test('writePost: 입력 검증, 링크 생성, 상한', () => {
@@ -225,9 +207,4 @@ test('auth: 패스프레이즈 확인, 실패 잠금, 코드 1회 사용, 토큰
   const req2 = await startAuth();
   for (let i = 0; i < 5; i++) p.consent(req2, 'wrong');
   assert.ok('error' in p.consent(req2, 'correct horse battery'));
-});
-
-test('mergeSetCookies: 갱신·추가·삭제', () => {
-  const merged = mergeSetCookies('a=1; b=2; c=3', ['a=9; Path=/', 'd=4; Max-Age=60', 'b=; Path=/', 'c=x; Max-Age=0']);
-  assert.equal(merged, 'a=9; d=4');
 });
