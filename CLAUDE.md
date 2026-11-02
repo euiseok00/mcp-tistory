@@ -11,6 +11,7 @@ npm test        # 단위 테스트 (tsx --test src/*.test.ts)
 npx tsc --noEmit
 npm run up      # docker compose up -d --build (Tailscale Funnel + 서버)
 npm run down    # docker compose down
+npm run ext:config # .env의 PUBLIC_URL로 extension/manifest.json 생성
 ```
 
 CI(`.github/workflows/ci.yml`)는 push마다 `tsc --noEmit` + `npm test`.
@@ -24,7 +25,7 @@ CI(`.github/workflows/ci.yml`)는 push마다 `tsc --noEmit` + `npm test`.
 | `src/tool.ts` | `tistory_write_post` 등록, 입력 검증(`INVALID_INPUT`), 링크 반환, 작성 지침이 담긴 도구 설명 |
 | `src/jobs.ts` | 메모리 작업 저장소(TTL 30분, lease 60초, 최대 500개), `/d/:token` 미리보기, `/api/jobs/:token/{claim,complete,release}` |
 | `src/markdown.ts` | `marked` → `sanitize-html` 허용 목록. h2/h3에 `section-N` id 부여 + 목차 자동 삽입, span color는 2색만 |
-| `extension/` | MV3 확장 프로그램. `content.js` 저장 버튼, `background.js` 호출, `classify.js` 응답 분류. 서버 주소는 `manifest.json`에만 있음 |
+| `extension/` | MV3 확장 프로그램. `content.js` 저장 버튼, `background.js` 호출, `classify.js` 응답 분류. `manifest.json`은 `manifest.template.json`에서 생성, git 제외 |
 | `docker-compose.yml`, `tailscale/serve.json` | tailscale 사이드카(userspace) + Funnel → `127.0.0.1:3000`. mcp는 `network_mode: service:tailscale` |
 
 ## 핵심 결정과 이유 (바꾸기 전에 확인)
@@ -51,6 +52,7 @@ CI(`.github/workflows/ci.yml`)는 push마다 `tsc --noEmit` + `npm test`.
 
 - 로그에 본문, 쿠키, 패스프레이즈, 토큰을 남기지 않는다. 길이와 결과 코드만.
 - `.env`, `secrets/`는 git·Docker 이미지에 넣지 않는다 (`.gitignore`, `.dockerignore`).
+- tailnet 이름을 저장소에 넣지 않는다. 문서에는 `<tailnet>`으로 쓴다.
 - 패스프레이즈 입력, 공개 터널 실행(`npm run up`)은 사용자가 직접 한다.
 - 문서·주석은 한국어.
 

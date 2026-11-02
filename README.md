@@ -79,19 +79,19 @@ cp .env.example .env
 3. **Settings → Keys → Generate auth key**로 인증 키를 만듭니다.
 4. **DNS** 화면에서 tailnet 이름을 확인합니다. 예: `tail1234.ts.net` → 서버 주소는 `https://tistory-mcp.tail1234.ts.net`
 
-### 4. 확장 프로그램 설치
-
-1. `extension/manifest.json`의 `tistory-mcp.<tailnet>.ts.net` 두 곳을 3단계에서 확인한 주소로 바꿉니다.
-2. `chrome://extensions`에서 개발자 모드를 켜고, **압축해제된 확장 프로그램 로드**로 `extension` 폴더를 선택합니다.
-3. 브라우저로 티스토리에 로그인합니다.
-
-### 5. `.env` 작성
+### 4. `.env` 작성
 
 ```ini
 OWNER_PASSPHRASE=16자-이상의-긴-패스프레이즈    # 커넥터 연결 승인용
 PUBLIC_URL=https://tistory-mcp.tail1234.ts.net # 3단계에서 확인한 주소
 TS_AUTHKEY=tskey-auth-...                      # 첫 실행 후에는 지워도 됨
 ```
+
+### 5. 확장 프로그램 설치
+
+1. `npm run ext:config`로 `.env`의 `PUBLIC_URL`에 맞는 `extension/manifest.json`을 만듭니다.
+2. `chrome://extensions`에서 개발자 모드를 켜고, **압축해제된 확장 프로그램 로드**로 `extension` 폴더를 선택합니다.
+3. 브라우저로 티스토리에 로그인합니다.
 
 ### 6. 실행
 
@@ -147,7 +147,7 @@ https://tistory-mcp.<tailnet>.ts.net/.well-known/oauth-authorization-server
 | 커넥터 추가 시 404 / 연결 실패 | 서버가 재시작 중이었거나 아직 준비 전입니다. 위 `.well-known` 주소가 열리는지 확인한 뒤 커넥터를 삭제하고 다시 추가하세요. |
 | 403 응답 | `.env`의 `PUBLIC_URL`이 실제 Tailscale 주소와 다릅니다. 고친 뒤 `npm run up`. |
 | 링크에 로그인 안내가 표시됨 | 티스토리에 다시 로그인하고 링크 페이지를 새로고침하세요. |
-| 링크에 설치 안내가 표시됨 | 확장 프로그램이 없거나 `manifest.json`의 주소가 서버 주소와 다릅니다. |
+| 링크에 설치 안내가 표시됨 | 확장 프로그램이 없거나 서버 주소가 바뀌었습니다. `npm run ext:config` 후 확장 프로그램을 새로고침하세요. |
 | 링크 만료 | 링크는 30분간 유효하고, 저장 후나 서버 재시작 후에는 쓸 수 없습니다. Claude에 다시 요청하세요. |
 | 저장 실패 안내가 반복됨 | 티스토리가 요청을 거부했거나 내부 API가 바뀌었을 수 있습니다. |
 | `INVALID_INPUT` | 제목(50자) 또는 본문(50,000자) 길이를 넘었습니다. 구간을 나눠 요청하세요. |

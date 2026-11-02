@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "up": "docker compose up -d --build",
-    "down": "docker compose down"
+    "down": "docker compose down",
+    "ext:config": "node --env-file=.env extension/configure.mjs"
   },
   "repository": {
     "type": "git",

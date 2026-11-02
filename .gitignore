@@ -3,3 +3,4 @@ dist/
 .env
 secrets/
 userMD/
+extension/manifest.json

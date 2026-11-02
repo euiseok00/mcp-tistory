@@ -42,7 +42,7 @@
 - content script는 서버의 `/d/*`에서만 실행한다.
 - background는 고정된 서버 origin과 `/manage/drafts`만 호출한다. 서버가 준 URL이나 임의 경로는 호출하지 않는다.
 - `redirect: 'manual'`의 `opaqueredirect`를 `SESSION_EXPIRED`로 분류한다. 응답 분류는 `extension/classify.js`에 있다.
-- 서버 주소는 `manifest.json`에만 둔다. 고정 주소가 바뀌면 이 파일만 고친다.
+- 서버 주소는 `.env`의 `PUBLIC_URL`로 `npm run ext:config`가 `manifest.json`에 넣는다. 생성 파일은 git에 넣지 않는다.
 
 ### 작업 저장소
 
@@ -91,8 +91,8 @@
 1. **Extension 단독 PoC:** 완료 (검증 1~5).
 2. **서버 전환:** 구현 완료. `src/jobs.ts`, `tool.ts`.
 3. **Extension 연동:** 완료 (검증 6~7). `extension/`.
-4. **쿠키 코드 제거:** 완료. 필요하면 커밋 `68c4e35`에서 복구한다.
-5. **공개 배포:** `src/auth.ts` 제거(이때 `/mcp`가 인증 없이 열린다), 호스팅 선정, Chrome 웹 스토어 심사, 약관 검토, `manifest.json`에서 `localhost` 제거.
+4. **쿠키 코드 제거:** 완료. 필요하면 커밋 `3b04036`에서 복구한다.
+5. **공개 배포:** `src/auth.ts` 제거(이때 `/mcp`가 인증 없이 열린다), 호스팅 선정, Chrome 웹 스토어 심사, 약관 검토, `manifest.template.json`에서 `localhost` 제거.
 
 5단계 전까지 `/mcp`는 기존 커넥터의 OAuth로 보호된다.
 

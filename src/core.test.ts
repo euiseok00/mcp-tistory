@@ -156,7 +156,7 @@ test('auth: 패스프레이즈 확인, 실패 잠금, 코드 1회 사용, 토큰
   assert.ok(passphraseMatches('correct horse battery', 'correct horse battery'));
   assert.ok(!passphraseMatches('wrong', 'correct horse battery'));
 
-  const resource = new URL('https://example.trycloudflare.com/mcp');
+  const resource = new URL('https://mcp.example/mcp');
   const p = new OwnerAuthProvider('correct horse battery', resource);
   const client = { client_id: 'c1', redirect_uris: ['https://claude.ai/api/mcp/auth_callback'] };
   const startAuth = async () => {
