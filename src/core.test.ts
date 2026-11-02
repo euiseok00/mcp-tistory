@@ -4,8 +4,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { markdownToTistoryHtml } from './markdown.js';
-import { parseDraftResponse, TistoryError, type TistoryClient } from './tistory.js';
+import express from 'express';
+import type { AddressInfo } from 'node:net';
+import { mergeSetCookies, parseDraftResponse, TistoryError } from './tistory.js';
 import { writePost } from './tool.js';
+import { JOB_MAX, JOB_TTL_MS, JobStore, LEASE_MS, jobRouter, previewPage } from './jobs.js';
+import { classifyDraft, parseBlogs } from '../extension/classify.js';
 import { OwnerAuthProvider, passphraseMatches } from './auth.js';
 
 test('markdown: 티스토리 구조 유지, 위험 HTML 제거', () => {
@@ -14,7 +18,11 @@ test('markdown: 티스토리 구조 유지, 위험 HTML 제거', () => {
       '[링크](https://example.com) [나쁜](javascript:alert(1)) <script>alert(1)</script><img src=x onerror=alert(1)>',
   );
   assert.match(html, /<h2 id="section-1" style="[^"]*font-weight:700[^"]*">제목<\/h2>/);
-  assert.match(html, /<table style="[^"]*">[\s\S]*<th style="[^"]*background:#f3f4f6[^"]*">A<\/th>/);
+  assert.match(html, /<table style="[^"]*">[\s\S]*<th style="[^"]*background:#f3f4f6[^"]*;text-align:left">A<\/th>/);
+  // 목록 앞 이모지는 불릿과 겹쳐서 뺀다, 정렬 지정한 헤더는 그대로
+  const list = markdownToTistoryHtml('- ✔️ 가\n- 🔹 나 ✅\n\n| A |\n|:-:|\n| 1 |');
+  assert.match(list, /<li>가<\/li>\n<li>나 <span style="font-size:1.25em">✅<\/span><\/li>/);
+  assert.match(list, /<th align="center" style="[^"]*font-weight:700">A/);
   assert.match(html, /<pre><code class="language-javascript">const a = 1;/);
   assert.match(html, /<blockquote data-ke-style="style3" style="border-left:4px solid #999999/);
   assert.match(html, /<a href="https:\/\/example.com">링크<\/a>/);
@@ -27,9 +35,10 @@ test('markdown: 목차 자동 생성, 색상은 두 가지만 허용', () => {
       '<span style="color:#006dd7">파랑</span> <span style="color:#ee2323">빨강</span> ' +
       '<span style="color:#00ff00;font-size:40px">초록</span>',
   );
-  assert.match(html, /^<h2 style="[^"]*"><span style="font-size:1.25em">📑<\/span> 목차<\/h2>/);
-  assert.match(html, /<p style="font-size:1.15em"><a href="#section-1" style="color:#000000;text-decoration:none"><strong>1. 가<\/strong><\/a><\/p>/);
-  assert.match(html, /<p style="font-size:0.95em;padding-left:1.5em"><a href="#section-2" style="color:#000000;text-decoration:none">1.1 나<\/a><\/p>/);
+  assert.match(html, /^<details>\n<summary><strong><span style="font-size:1.25em">📑<\/span> 목차 \(3\)<\/strong> 펼치기<\/summary>/);
+  assert.match(html, /<\/details>\n<p><br \/><\/p>\n<h2 id="section-1"/);
+  assert.match(html, /<p style="font-size:1.15em;margin:0.9em 0 0.3em"><a href="#section-1" style="color:#000000;text-decoration:none"><strong>1. 가<\/strong><\/a><\/p>/);
+  assert.match(html, /<p style="font-size:0.95em;padding-left:1.5em;margin:0.3em 0"><a href="#section-2" style="color:#000000;text-decoration:none">1.1 나<\/a><\/p>/);
   assert.match(html, /<a href="#section-3"[^>]*><strong>2. 다<\/strong>/);
   assert.match(html, /<h3 id="section-2" style="[^"]*">1.1 나<\/h3>/);
   assert.match(html, /<span style="color:#006dd7">파랑<\/span>/);
@@ -70,16 +79,95 @@ test('parseDraftResponse: 응답 분류', () => {
   assert.equal(code(500, 'oops'), 'UNKNOWN');
 });
 
-test('writePost: 입력 검증과 오류 변환', async () => {
-  const ok: TistoryClient = { saveDraft: async () => ({ draftId: 7 }) };
-  const expired: TistoryClient = { saveDraft: async () => { throw new TistoryError('SESSION_EXPIRED', 'x'); } };
+test('writePost: 입력 검증, 링크 생성, 상한', () => {
+  const base = new URL('https://mcp.example');
+  const jobs = new JobStore();
+  const errorCode = (title: string, content: string, store = jobs) => (writePost(store, base, title, content) as { errorCode: string }).errorCode;
 
-  assert.deepEqual(await writePost(ok, ' 제목 ', '본문'), { ok: true, draftId: 7, title: '제목' });
-  assert.equal((await writePost(ok, '', '본문') as { errorCode: string }).errorCode, 'INVALID_INPUT');
-  assert.equal((await writePost(ok, 'a'.repeat(51), '본문') as { errorCode: string }).errorCode, 'INVALID_INPUT');
-  assert.equal((await writePost(ok, '두\n줄', '본문') as { errorCode: string }).errorCode, 'INVALID_INPUT');
-  assert.equal((await writePost(ok, '제목', '  ') as { errorCode: string }).errorCode, 'INVALID_INPUT');
-  assert.equal((await writePost(expired, '제목', '본문') as { errorCode: string }).errorCode, 'SESSION_EXPIRED');
+  const ok = writePost(jobs, base, ' 제목 ', '본문');
+  assert.ok(ok.ok);
+  assert.equal(ok.title, '제목');
+  const token = /^https:\/\/mcp\.example\/d\/([\w-]{43})$/.exec(ok.url)![1];
+  assert.match(jobs.get(token)!.html, /본문/);
+
+  assert.equal(errorCode('', '본문'), 'INVALID_INPUT');
+  assert.equal(errorCode('a'.repeat(51), '본문'), 'INVALID_INPUT');
+  assert.equal(errorCode('두\n줄', '본문'), 'INVALID_INPUT');
+  assert.equal(errorCode('제목', '  '), 'INVALID_INPUT');
+
+  const full = new JobStore();
+  for (let i = 0; i < JOB_MAX; i++) full.create('t', 'h');
+  assert.equal(errorCode('제목', '본문', full), 'SERVER_BUSY');
+});
+
+test('JobStore: TTL, lease, 재시도, 완료', () => {
+  let now = 1000;
+  const store = new JobStore(() => now);
+  const { token } = store.create('t', 'h')!;
+
+  assert.equal((store.claim(token) as { title: string }).title, 't');
+  assert.equal(store.claim(token), 'busy'); // 중복 저장 방지
+  store.release(token);
+  assert.notEqual(store.claim(token), 'busy'); // 실패 후 재시도
+  now += LEASE_MS;
+  assert.notEqual(store.claim(token), 'busy'); // 저장 중 죽어도 lease가 풀림
+  store.complete(token);
+  assert.equal(store.claim(token), undefined);
+
+  const expiring = store.create('t', 'h')!.token;
+  now += JOB_TTL_MS;
+  assert.equal(store.get(expiring), undefined);
+  // 만료 작업은 상한을 차지하지 않는다
+  const full = new JobStore(() => now);
+  for (let i = 0; i < JOB_MAX; i++) full.create('t', 'h');
+  now += JOB_TTL_MS;
+  assert.ok(full.create('t', 'h'));
+});
+
+test('jobRouter: 조회는 소비하지 않고, 제목을 이스케이프한다', async () => {
+  const store = new JobStore();
+  const { token } = store.create('<script>x</script>', '<p>본문</p>')!;
+  const server = express().use(jobRouter(store)).listen(0);
+  try {
+    const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const post = (action: string) => fetch(`${base}/api/jobs/${token}/${action}`, { method: 'POST' });
+
+    const view = await fetch(`${base}/d/${token}`);
+    assert.equal(view.status, 200);
+    assert.match(view.headers.get('content-security-policy')!, /default-src 'none'/);
+    assert.equal(view.headers.get('referrer-policy'), 'no-referrer');
+    const html = await view.text();
+    assert.doesNotMatch(html, /<script>/);
+    assert.match(html, /id="save-slot"/);
+
+    assert.deepEqual(await (await post('claim')).json(), { title: '<script>x</script>', html: '<p>본문</p>' });
+    assert.equal((await post('claim')).status, 409);
+    assert.equal((await post('release')).status, 204);
+    assert.equal((await post('claim')).status, 200);
+    assert.equal((await post('complete')).status, 204);
+    assert.equal((await post('claim')).status, 404);
+    assert.equal((await fetch(`${base}/d/${token}`)).status, 404);
+  } finally {
+    server.close();
+  }
+  assert.match(previewPage({ title: '"a"', html: '' }), /&quot;a&quot;/);
+});
+
+test('extension classify: 실측 응답 분류', () => {
+  assert.deepEqual(classifyDraft('basic', 200, '{"success":true,"total":6,"draft":{"sequence":28}}'), { ok: true, draftId: 28 });
+  const code = (type: string, status: number, body: string) => (classifyDraft(type, status, body) as { errorCode: string }).errorCode;
+  assert.equal(code('opaqueredirect', 0, ''), 'SESSION_EXPIRED');
+  assert.equal(code('basic', 401, ''), 'SESSION_EXPIRED');
+  assert.equal(code('basic', 200, '<html>login</html>'), 'SESSION_EXPIRED');
+  assert.equal(code('basic', 400, '{"success":false}'), 'TISTORY_REJECTED');
+  assert.equal(code('basic', 200, '{"success":false}'), 'TISTORY_REJECTED');
+  assert.equal(code('basic', 500, 'oops'), 'UNKNOWN');
+
+  const blogs = '{"status":200,"desc":"OK","data":[{"name":"a-1","title":"A","defaultBlog":false},{"name":"b","title":"B","defaultBlog":true},{"name":"x.evil.com/","title":"C","defaultBlog":false}]}';
+  assert.deepEqual(parseBlogs('basic', 200, blogs), { ok: true, blogs: [{ name: 'a-1', title: 'A', defaultBlog: false }, { name: 'b', title: 'B', defaultBlog: true }] });
+  assert.equal((parseBlogs('opaqueredirect', 0, '') as { errorCode: string }).errorCode, 'SESSION_EXPIRED');
+  assert.equal((parseBlogs('basic', 200, '<html>') as { errorCode: string }).errorCode, 'SESSION_EXPIRED');
+  assert.equal((parseBlogs('basic', 200, '{"status":500}') as { errorCode: string }).errorCode, 'UNKNOWN');
 });
 
 test('auth: 패스프레이즈 확인, 실패 잠금, 코드 1회 사용, 토큰 검증', async () => {
@@ -137,4 +225,9 @@ test('auth: 패스프레이즈 확인, 실패 잠금, 코드 1회 사용, 토큰
   const req2 = await startAuth();
   for (let i = 0; i < 5; i++) p.consent(req2, 'wrong');
   assert.ok('error' in p.consent(req2, 'correct horse battery'));
+});
+
+test('mergeSetCookies: 갱신·추가·삭제', () => {
+  const merged = mergeSetCookies('a=1; b=2; c=3', ['a=9; Path=/', 'd=4; Max-Age=60', 'b=; Path=/', 'c=x; Max-Age=0']);
+  assert.equal(merged, 'a=9; d=4');
 });

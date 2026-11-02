@@ -5,7 +5,7 @@ import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js
 import { getOAuthProtectedResourceMetadataUrl, mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { consentPage, OwnerAuthProvider } from './auth.js';
-import { CookieTistoryClient, cookieSource } from './tistory.js';
+import { JobStore, jobRouter } from './jobs.js';
 import { registerWritePost } from './tool.js';
 
 function required(name: string): string {
@@ -22,7 +22,7 @@ const MCP_URL = new URL('/mcp', PUBLIC_URL);
 const passphrase = required('OWNER_PASSPHRASE');
 if (passphrase.length < 16) throw new Error('OWNER_PASSPHRASE는 16자 이상이어야 합니다.');
 
-const tistory = new CookieTistoryClient(required('TISTORY_BLOG_NAME'), cookieSource(process.env));
+const jobs = new JobStore();
 const auth = new OwnerAuthProvider(passphrase, MCP_URL, process.env.OAUTH_STATE_FILE || undefined);
 
 const app = createMcpExpressApp({
@@ -32,6 +32,8 @@ const app = createMcpExpressApp({
 app.set('trust proxy', 1); // Funnel 프록시 1단계 뒤에 있음. rate limit이 실제 IP를 보게 한다
 
 app.use(mcpAuthRouter({ provider: auth, issuerUrl: PUBLIC_URL, resourceServerUrl: MCP_URL, resourceName: 'Tistory MCP' }));
+
+app.use(jobRouter(jobs));
 
 app.post('/consent', express.urlencoded({ extended: false }), (req, res) => {
   const requestId = String(req.body?.request_id ?? '');
@@ -45,7 +47,7 @@ const bearer = requireBearerAuth({ verifier: auth, resourceMetadataUrl: getOAuth
 // stateless + JSON 응답: 터널 종류와 무관하게 단순하게 유지
 app.post('/mcp', bearer, async (req, res) => {
   const server = new McpServer({ name: 'tistory-mcp', version: '1.0.0' });
-  registerWritePost(server, tistory);
+  registerWritePost(server, jobs, PUBLIC_URL);
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
   res.on('close', () => {
     transport.close();

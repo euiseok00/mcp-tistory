@@ -1,6 +1,6 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 
-export type ErrorCode = 'INVALID_INPUT' | 'SESSION_EXPIRED' | 'TISTORY_REJECTED' | 'UNKNOWN';
+export type ErrorCode = 'INVALID_INPUT' | 'SERVER_BUSY' | 'SESSION_EXPIRED' | 'TISTORY_REJECTED' | 'UNKNOWN';
 
 export class TistoryError extends Error {
   constructor(
@@ -21,7 +21,32 @@ export class CookieTistoryClient implements TistoryClient {
   constructor(
     private readonly blogName: string,
     private readonly getCookie: () => Promise<string>,
+    // 응답의 Set-Cookie로 갱신된 쿠키를 되써서 세션 수명이 슬라이딩 되게 한다
+    private readonly putCookie?: (cookie: string) => Promise<void>,
   ) {}
+
+  /** 세션 유지용 가벼운 GET. 세션이 살아 있으면 true */
+  async keepAlive(): Promise<boolean> {
+    const origin = `https://${this.blogName}.tistory.com`;
+    try {
+      const res = await fetch(`${origin}/manage/newpost/`, {
+        redirect: 'manual',
+        signal: AbortSignal.timeout(15_000),
+        headers: { Cookie: await this.getCookie() },
+      });
+      await this.absorbSetCookie(res);
+      return res.status === 200;
+    } catch {
+      return false;
+    }
+  }
+
+  private async absorbSetCookie(res: Response): Promise<void> {
+    const set = res.headers.getSetCookie();
+    if (!this.putCookie || set.length === 0) return;
+    const merged = mergeSetCookies(await this.getCookie(), set);
+    await this.putCookie(merged);
+  }
 
   async saveDraft(title: string, html: string): Promise<{ draftId: number }> {
     const origin = `https://${this.blogName}.tistory.com`;
@@ -44,8 +69,32 @@ export class CookieTistoryClient implements TistoryClient {
     } catch (e) {
       throw new TistoryError('UNKNOWN', `티스토리 연결 실패: ${(e as Error).message}`);
     }
+    await this.absorbSetCookie(res).catch(() => {}); // 쿠키 저장 실패가 글 저장 결과를 가리면 안 된다
     return parseDraftResponse(res.status, await res.text());
   }
+}
+
+/** Cookie 헤더 값에 Set-Cookie들을 반영한다. 빈 값·만료된 항목은 삭제. */
+export function mergeSetCookies(cookie: string, setCookies: string[]): string {
+  const jar = new Map<string, string>();
+  for (const part of cookie.split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0) jar.set(part.slice(0, i).trim(), part.slice(i + 1).trim());
+  }
+  for (const line of setCookies) {
+    const [pair, ...attrs] = line.split(';');
+    const i = pair.indexOf('=');
+    if (i <= 0) continue;
+    const name = pair.slice(0, i).trim();
+    const value = pair.slice(i + 1).trim();
+    const expired = attrs.some((a) => {
+      const [k, v = ''] = a.split('=').map((s) => s.trim().toLowerCase());
+      return (k === 'max-age' && Number(v) <= 0) || (k === 'expires' && Date.parse(v) < Date.now());
+    });
+    if (!value || expired) jar.delete(name);
+    else jar.set(name, value);
+  }
+  return [...jar].map(([k, v]) => `${k}=${v}`).join('; ');
 }
 
 export function parseDraftResponse(status: number, body: string): { draftId: number } {
@@ -75,4 +124,10 @@ export function cookieSource(env: NodeJS.ProcessEnv): () => Promise<string> {
   const cookie = env.TISTORY_COOKIE;
   if (!cookie) throw new Error('TISTORY_COOKIE_FILE 또는 TISTORY_COOKIE 환경변수가 필요합니다.');
   return async () => cookie;
+}
+
+/** 쿠키 파일을 쓸 수 있을 때만 갱신 저장기를 돌려준다 */
+export function cookieSink(env: NodeJS.ProcessEnv): ((cookie: string) => Promise<void>) | undefined {
+  const file = env.TISTORY_COOKIE_FILE;
+  return file ? (cookie) => writeFile(file, cookie, 'utf8') : undefined;
 }

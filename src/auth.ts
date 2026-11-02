@@ -6,6 +6,7 @@ import type { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/serv
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import type { OAuthClientInformationFull, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js';
 import { InvalidGrantError, InvalidTargetError, InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
+import { escapeHtml } from './jobs.js';
 
 const ACCESS_TTL_S = 3600;
 const CODE_TTL_MS = 10 * 60_000;
@@ -181,9 +182,6 @@ export class OwnerAuthProvider implements OAuthServerProvider {
     return { access_token: access, token_type: 'bearer', expires_in: ACCESS_TTL_S, refresh_token: refresh, scope: scopes.join(' ') };
   }
 }
-
-const escapeHtml = (s: string) =>
-  s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
 export function consentPage(requestId: string, clientName = '알 수 없는 클라이언트', error?: string): string {
   return `<!doctype html>

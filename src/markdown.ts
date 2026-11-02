@@ -13,7 +13,7 @@ const SANITIZE: sanitizeHtml.IOptions = {
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'br',
     'ul', 'ol', 'li', 'blockquote', 'pre', 'code',
     'table', 'thead', 'tbody', 'tr', 'th', 'td',
-    'a', 'strong', 'em', 'del', 's', 'span',
+    'a', 'strong', 'em', 'del', 's', 'span', 'details', 'summary',
   ],
   allowedAttributes: {
     a: ['href', 'title', 'style'],
@@ -30,7 +30,7 @@ const SANITIZE: sanitizeHtml.IOptions = {
   allowedStyles: {
     span: { color: [new RegExp(`^(${COLOR_IMPORTANT}|${COLOR_WARNING})$`, 'i')] },
     a: { color: [/^#000000$/], 'text-decoration': [/^none$/] },
-    p: { 'font-size': [/^(1\.15em|0\.95em)$/], 'padding-left': [/^1\.5em$/] },
+    p: { 'font-size': [/^(1\.15em|0\.95em)$/], 'padding-left': [/^1\.5em$/], margin: [/^(0\.9em 0 0\.3em|0\.3em 0)$/] },
   },
   allowedSchemes: ['http', 'https', 'mailto'],
   // 이모지를 살짝 키운다. textFilter 출력은 다시 검사되지 않으므로 고정 문자열만 넣는다
@@ -65,8 +65,12 @@ function decorate(html: string): string {
   return html
     .replace(/<h([23])( id="[^"]*")?>/g, (_, d: '2' | '3', id = '') => `<h${d}${id} style="${H_STYLE[d]}">`)
     .replace(/<table>/g, '<table style="border-collapse:collapse;width:100%;margin:1em 0 1.5em">')
-    .replace(/<th( align="\w+")?>/g, `<th$1 style="${CELL};background:#f3f4f6;font-weight:700">`)
+    // 헤더도 본문 셀처럼 왼쪽 정렬. 마크다운에서 정렬을 지정했으면 그대로 둔다 (feedback02 V3)
+    .replace(/<th( align="\w+")?>/g, (_, align = '') =>
+      `<th${align} style="${CELL};background:#f3f4f6;font-weight:700${align ? '' : ';text-align:left'}">`)
     .replace(/<td( align="\w+")?>/g, `<td$1 style="${CELL}">`)
+    // 기본 불릿과 겹치는 목록 앞 이모지를 뺀다 (feedback02 V1)
+    .replace(/<li>(\s*<p>)?<span style="font-size:1\.25em">[^<]*<\/span>\s*/g, '<li>$1')
     .replace(BOX_HEAD, (m, rest = '', emoji?: string) => {
       const [border, bg] = (emoji && BOX[emoji]) || BOX_DEFAULT;
       return `<blockquote data-ke-style="style3" style="border-left:4px solid ${border};background:${bg};` +
@@ -79,11 +83,13 @@ type TocItem = { depth: 2 | 3; id: string; text: string };
 const TOC_LINK = 'color:#000000;text-decoration:none';
 
 // h2(대주제)·h3(소주제)로 목차를 만든다. 검은색, 글자 크기와 들여쓰기로 단계 구분
+// 첫 화면을 덜 차지하게 접어 둔다 (feedback02 I1)
 function renderToc(items: TocItem[]): string {
   const lines = items.map(({ depth, id, text }) => depth === 2
-    ? `<p style="font-size:1.15em"><a href="#${id}" style="${TOC_LINK}"><strong>${text}</strong></a></p>`
-    : `<p style="font-size:0.95em;padding-left:1.5em"><a href="#${id}" style="${TOC_LINK}">${text}</a></p>`);
-  return `<h2>📑 목차</h2>\n${lines.join('\n')}\n<p>👉 제목을 클릭하면 해당 부분으로 이동합니다.</p>\n<p><br></p>\n`;
+    ? `<p style="font-size:1.15em;margin:0.9em 0 0.3em"><a href="#${id}" style="${TOC_LINK}"><strong>${text}</strong></a></p>`
+    : `<p style="font-size:0.95em;padding-left:1.5em;margin:0.3em 0"><a href="#${id}" style="${TOC_LINK}">${text}</a></p>`);
+  return `<details>\n<summary><strong>📑 목차 (${items.length})</strong> 펼치기</summary>\n${lines.join('\n')}\n` +
+    `<p>👉 제목을 클릭하면 해당 부분으로 이동합니다.</p>\n</details>\n<p><br></p>\n`;
 }
 
 export function markdownToTistoryHtml(markdown: string): string {

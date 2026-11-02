@@ -29,7 +29,8 @@ services:
       # 재빌드·재시작해도 커넥터 재인가가 필요 없게 OAuth 상태를 볼륨에 둔다
       OAUTH_STATE_FILE: /app/data/oauth.json
     volumes:
-      - ./secrets:/run/secrets:ro
+      # 쿠키 갱신(Set-Cookie)을 파일에 되쓰므로 쓰기 가능
+      - ./secrets:/run/secrets
       - mcp-state:/app/data
     restart: unless-stopped
 
