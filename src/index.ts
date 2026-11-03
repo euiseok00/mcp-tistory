@@ -5,7 +5,7 @@ import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js
 import { getOAuthProtectedResourceMetadataUrl, mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { consentPage, OwnerAuthProvider } from './auth.js';
-import { JobStore, jobRouter } from './jobs.js';
+import { JobStore, jobRouter, toolCallGuard } from './jobs.js';
 import { registerWritePost } from './tool.js';
 
 function required(name: string): string {
@@ -45,7 +45,7 @@ app.post('/consent', express.urlencoded({ extended: false }), (req, res) => {
 const bearer = requireBearerAuth({ verifier: auth, resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(MCP_URL) });
 
 // stateless + JSON 응답: 터널 종류와 무관하게 단순하게 유지
-app.post('/mcp', bearer, async (req, res) => {
+app.post('/mcp', ...toolCallGuard(), bearer, async (req, res) => {
   const server = new McpServer({ name: 'tistory-mcp', version: '1.0.0' });
   registerWritePost(server, jobs, PUBLIC_URL);
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });

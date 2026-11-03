@@ -5,8 +5,31 @@ const MESSAGES = {
   LINK_EXPIRED: '링크가 만료되었거나 이미 저장되었습니다. Claude에서 다시 요청하세요.',
   IN_PROGRESS: '다른 탭에서 저장 중입니다. 1분 뒤 다시 시도하세요.',
   TISTORY_REJECTED: '티스토리가 저장을 거부했습니다. 잠시 후 다시 시도하세요.',
+  DIAGRAM_FAILED: '다이어그램을 이미지로 바꾸지 못했습니다. Claude에서 다이어그램을 고쳐 다시 요청하세요.',
   UNKNOWN: '저장하지 못했습니다. 잠시 후 다시 시도하세요.',
 };
+
+// 2배로 그려 고해상도 화면에서도 선명하게 한다. 치환자에는 원래 크기를 넣는다
+const SCALE = 2;
+
+/** 미리보기의 SVG 다이어그램을 순서대로 PNG로 바꾼다. 서비스 워커에는 SVG를 그릴 canvas가 없어 여기서 한다. */
+async function renderDiagrams() {
+  const images = [...document.querySelectorAll('article img[data-mcp-svg]')];
+  return Promise.all(images.map(async (img) => {
+    await img.decode();
+    // width·height가 없는 SVG는 크기가 0일 수 있다
+    const width = img.naturalWidth || 800;
+    const height = img.naturalHeight || 450;
+    const canvas = document.createElement('canvas');
+    canvas.width = width * SCALE;
+    canvas.height = height * SCALE;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return { dataUrl: canvas.toDataURL('image/png'), width, height };
+  }));
+}
 
 function showLogin() {
   const link = document.createElement('a');
@@ -44,7 +67,15 @@ function showForm(blogs) {
     if (!event.isTrusted) return;
     button.disabled = true;
     status.textContent = '저장 중…';
-    const result = await chrome.runtime.sendMessage({ kind: 'save', token, blog: select.value });
+    let diagrams;
+    try {
+      diagrams = await renderDiagrams();
+    } catch {
+      status.textContent = MESSAGES.DIAGRAM_FAILED;
+      button.disabled = false;
+      return;
+    }
+    const result = await chrome.runtime.sendMessage({ kind: 'save', token, blog: select.value, diagrams });
     if (result.ok) return showSaved(select.value, result.draftId);
     if (result.errorCode === 'SESSION_EXPIRED') return showLogin();
     status.textContent = MESSAGES[result.errorCode] ?? MESSAGES.UNKNOWN;

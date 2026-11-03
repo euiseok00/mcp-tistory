@@ -33,3 +33,30 @@ export function parseBlogs(type, status, body) {
     .map((b) => ({ name: b.name, title: String(b.title ?? b.name), defaultBlog: b.defaultBlog === true }));
   return { ok: true, blogs };
 }
+
+/** POST /manage/post/attach.json 응답 분류. key·filename은 치환자에 그대로 들어가므로 구분자(|, _##])가 없는지 확인한다. */
+export function classifyUpload(type, status, body) {
+  if (type === 'opaqueredirect' || status === 401 || status === 403) return { ok: false, errorCode: 'SESSION_EXPIRED' };
+  let json;
+  try {
+    json = JSON.parse(body);
+  } catch {
+    if (status === 200) return { ok: false, errorCode: 'SESSION_EXPIRED' };
+  }
+  if (status >= 400 && status < 500) return { ok: false, errorCode: 'TISTORY_REJECTED' };
+  if (status !== 200) return { ok: false, errorCode: 'UNKNOWN' };
+  if (typeof json?.key !== 'string' || !/^[\w-]+(\/[\w-]+)*$/.test(json.key) ||
+      typeof json.filename !== 'string' || !/^[\w-]+\.\w+$/.test(json.filename)) {
+    return { ok: false, errorCode: 'TISTORY_REJECTED' };
+  }
+  return { ok: true, key: json.key, filename: json.filename };
+}
+
+// 서버가 만든 다이어그램 자리. src/markdown.ts의 diagramImg와 형식이 같아야 한다
+export const DIAGRAM_IMG = /<img data-mcp-svg [^>]*>/g;
+
+/** 티스토리 에디터가 저장하는 이미지 치환자. 서명 쿼리는 티스토리가 열 때 붙인다 (실측 2026-11-03). */
+export function imagePlaceholder({ key, filename }, width, height, name) {
+  const meta = JSON.stringify({ originWidth: width, originHeight: height, style: 'alignCenter', filename: name });
+  return `<p>[##_Image|kage@${key}/${filename}|CDM|1.3|${meta}_##]</p>`;
+}

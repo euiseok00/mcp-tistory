@@ -24,8 +24,8 @@ CI(`.github/workflows/ci.yml`)는 push마다 `tsc --noEmit` + `npm test`.
 | `src/auth.ts` | 내장 OAuth 인가 서버 `OwnerAuthProvider`. 클라이언트·토큰 해시는 상태 파일, 패스프레이즈 폼, 5회 실패 시 15분 잠금 |
 | `src/tool.ts` | `tistory_write_post` 등록, 입력 검증(`INVALID_INPUT`), 링크 반환, 작성 지침이 담긴 도구 설명 |
 | `src/jobs.ts` | 메모리 작업 저장소(TTL 30분, lease 60초, 최대 500개), `/d/:token` 미리보기, `/api/jobs/:token/{claim,complete,release}` |
-| `src/markdown.ts` | `marked` → `sanitize-html` 허용 목록. h2/h3에 `section-N` id 부여 + 목차 자동 삽입, span color는 2색만 |
-| `extension/` | MV3 확장 프로그램. `content.js` 저장 버튼, `background.js` 호출, `classify.js` 응답 분류. `manifest.json`은 `manifest.template.json`에서 생성, git 제외 |
+| `src/markdown.ts` | `marked` → `sanitize-html` 허용 목록. h2/h3에 `section-N` id 부여 + 목차 자동 삽입, span color는 2색만. ```` ```svg ```` 블록은 sanitize 뒤 `<img data-mcp-svg>`(data URL)로 |
+| `extension/` | MV3 확장 프로그램. `content.js` 저장 버튼 + SVG→PNG(canvas, 2배), `background.js` 업로드·치환자 교체·저장, `classify.js` 응답 분류·치환자. `manifest.json`은 `manifest.template.json`에서 생성, git 제외 |
 | `docker-compose.yml`, `tailscale/serve.json` | tailscale 사이드카(userspace) + Funnel → `127.0.0.1:3000`. mcp는 `network_mode: service:tailscale` |
 
 ## 핵심 결정과 이유 (바꾸기 전에 확인)
@@ -47,6 +47,15 @@ CI(`.github/workflows/ci.yml`)는 push마다 `tsc --noEmit` + `npm test`.
 - CSRF 없음, 쿠키만. 비로그인은 로그인 페이지로 redirect → 확장 프로그램에선 `status 0`, `opaqueredirect` → `SESSION_EXPIRED`
 - 확장 프로그램의 `Origin`을 바꾸지 않아도 성공한다 (실측).
 - 블로그 목록: `GET https://www.tistory.com/legacy/member/blog/api/myBlogs` → `data[].name`, `defaultBlog`
+- 이미지 업로드 (2026-11-03 캡처): `POST https://{blog}.tistory.com/manage/post/attach.json`, XHR `multipart/form-data`, 필드 `file` 하나
+  - 응답 `{name, url, key, filename:"img.png", size}`. `url`은 `blog.kakaocdn.net/dna/{key}/img.png?credential=…&expires=…&signature=…` 서명 URL (약 4주 만료)
+  - 에디터가 저장하는 본문은 `<img>`가 아니라 치환자: `<p>[##_Image|kage@{key}/img.png?{서명 쿼리}|CDM|1.3|{"originWidth":W,"originHeight":H,"style":"alignCenter","filename":"…"}_##]</p>`
+  - 에디터 파일 input `accept`에 `image/svg+xml`도 있다 (SVG 직접 업로드 가능성, 미검증)
+  - `drafts` API에 치환자를 넣으면 그대로 저장되고 에디터에서 이미지로 렌더된다 (2026-11-03, draft 34)
+  - 서명 쿼리는 빼도 된다: `kage@{key}/img.png`만 넣어도 티스토리가 열 때 새로 서명한다. 따라서 치환자는 서명 없이 만든다
+  - 미확인: 발행 글 렌더, SVG 업로드
+  - 에디터는 `p`의 `margin`과 위아래 `padding`을 0으로 덮어쓴다. `line-height`, `padding-left`, `border-bottom`, `color`, `letter-spacing`은 남는다 (2026-11-03). 간격은 `line-height`로 준다
+  - 관찰: 에디터에서 임시저장 글을 불러온 뒤 저장 없이 나가면 그 글이 목록에서 사라졌다 (draft 34). 원인 미확인
 
 ## 규칙
 

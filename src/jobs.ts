@@ -1,9 +1,14 @@
 import { randomBytes } from 'node:crypto';
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
+import { rateLimit } from 'express-rate-limit';
+import sanitizeHtml from 'sanitize-html';
 
 export const JOB_TTL_MS = 30 * 60_000;
 export const LEASE_MS = 60_000;
 export const JOB_MAX = 500;
+// 분당 10개면 IP 하나가 TTL 30분 동안 만들 수 있는 작업은 300개다. JOB_MAX를 혼자 채우지 못한다.
+export const TOOL_CALLS_PER_MIN = 10;
+export const PAGE_REQUESTS_PER_MIN = 60;
 
 export interface Job {
   title: string;
@@ -71,6 +76,7 @@ body{max-width:760px;margin:2rem auto;padding:0 1rem;font-family:sans-serif;line
 #save-slot{position:sticky;top:0;padding:1rem;margin-bottom:1.5rem;background:#f3f4f6;border-radius:8px}
 pre{overflow-x:auto;padding:1rem;background:#f8f8f8}
 table{border-collapse:collapse}
+img{max-width:100%;height:auto}
 </style>
 </head>
 <body>
@@ -79,21 +85,62 @@ ${body}
 </html>`;
 }
 
+/** 우리 도메인이 피싱에 쓰이지 않게 미리보기에서만 외부 링크를 끈다. 저장되는 글의 링크는 그대로다. */
+export function disableExternalLinks(html: string): string {
+  return sanitizeHtml(html, {
+    allowedTags: false,
+    allowedAttributes: false,
+    // 다이어그램 <img data-mcp-svg>의 data: URL을 지우면 PNG 변환이 실패한다. 이미지는 CSP img-src data:로만 로드된다
+    allowedSchemesByTag: { img: ['data'] },
+    transformTags: {
+      a: (_tag, attribs) => {
+        const href = attribs.href;
+        return href?.startsWith('#') ? { tagName: 'a', attribs: { href } } : { tagName: 'span', attribs: {} as Record<string, string> };
+      },
+    },
+  });
+}
+
 export function previewPage(job: Pick<Job, 'title' | 'html'>): string {
   return page(job.title, `<div id="save-slot" role="status" aria-live="polite">임시저장하려면 Chrome 확장 프로그램을 설치하고 이 페이지를 새로고침하세요.</div>
+<p role="note">이 글은 Claude 대화에서 만들어진 사용자 생성 콘텐츠이며, 서비스 운영자가 작성하거나 검토하지 않았습니다. 이 페이지는 비밀번호나 결제 정보를 요구하지 않습니다. 미리보기에서는 외부 링크가 동작하지 않습니다.</p>
 <h1>${escapeHtml(job.title)}</h1>
-<article>${job.html}</article>`);
+<article>${disableExternalLinks(job.html)}</article>`);
+}
+
+/** POST /mcp 앞에 둔다. 작업을 만드는 tools/call만 IP별로 제한한다. */
+export function toolCallGuard(): RequestHandler[] {
+  const reject = (req: Parameters<RequestHandler>[0], res: Parameters<RequestHandler>[1], status: number, message: string) =>
+    res.status(status).json({ jsonrpc: '2.0', error: { code: -32000, message }, id: req.body?.id ?? null });
+  return [
+    // 배치 한 건으로 여러 작업을 만들면 횟수 제한을 우회하므로 막는다
+    (req, res, next) => {
+      if (Array.isArray(req.body) && req.body.some((m) => m?.method === 'tools/call')) {
+        return void reject(req, res, 400, 'tools/call은 배치로 보낼 수 없습니다.');
+      }
+      next();
+    },
+    rateLimit({
+      windowMs: 60_000,
+      limit: TOOL_CALLS_PER_MIN,
+      standardHeaders: true,
+      legacyHeaders: false,
+      skip: (req) => req.body?.method !== 'tools/call',
+      handler: (req, res) => void reject(req, res, 429, '요청이 너무 많습니다. 잠시 후 다시 시도하세요.'),
+    }),
+  ];
 }
 
 /** 링크 페이지와 확장 프로그램용 API. 256비트 토큰 자체가 권한이다. */
 export function jobRouter(store: JobStore): Router {
   const router = Router();
+  router.use(['/d', '/api/jobs'], rateLimit({ windowMs: 60_000, limit: PAGE_REQUESTS_PER_MIN, standardHeaders: true, legacyHeaders: false }));
 
   // GET은 작업을 소비하지 않는다. 링크 미리보기 봇이 작업을 없애면 안 된다.
   router.get('/d/:token', (req, res) => {
     res.set({
       // 확장 프로그램의 content script는 이 CSP의 영향을 받지 않는다
-      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
       'Referrer-Policy': 'no-referrer',
       'Cache-Control': 'no-store',
       'X-Robots-Tag': 'noindex',
