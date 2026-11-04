@@ -72,7 +72,8 @@ CI(`.github/workflows/ci.yml`)는 push마다 `tsc --noEmit` + `npm test`.
 - [x] CI, README, `.gitattributes` (eol=lf)
 - [x] 쿠키 방식을 일회용 링크 + 확장 프로그램으로 교체, 실제 흐름 검증 완료
 - [ ] 공개 배포: OAuth 제거, 호스팅, 웹 스토어, 약관 검토
-- [ ] 2단계: 태그·카테고리 (`tags`, `categoryId` 필드만 채우면 됨) → 이미지 → 발행·수정·삭제
+- [x] 태그: Claude가 키워드 5개를 `tags`로 넘기고, 확장 프로그램이 쉼표로 이어 저장 (티스토리 반영 미검증)
+- [ ] 2단계: 카테고리 (`categoryId`) → 이미지 → 발행·수정·삭제
 
 ## 고려사항 / 미해결
 

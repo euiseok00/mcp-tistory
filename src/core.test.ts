@@ -68,13 +68,15 @@ test('markdown: 목차 자동 생성, 색상은 두 가지만 허용', () => {
 test('writePost: 입력 검증, 링크 생성, 상한', () => {
   const base = new URL('https://mcp.example');
   const jobs = new JobStore();
-  const errorCode = (title: string, content: string, store = jobs) => (writePost(store, base, title, content) as { errorCode: string }).errorCode;
+  const tags = ['자바', 'JVM'];
+  const errorCode = (title: string, content: string, store = jobs, t = tags) => (writePost(store, base, title, content, t) as { errorCode: string }).errorCode;
   const svg = '```svg\n<svg width="10" height="10"></svg>\n```';
   const body = `본문\n\n${svg}`;
 
-  const ok = writePost(jobs, base, ' 제목 ', body);
+  const ok = writePost(jobs, base, ' 제목 ', body, [' 자바 ', '#JVM', '자바']);
   assert.ok(ok.ok);
   assert.equal(ok.title, '제목');
+  assert.deepEqual(ok.tags, ['자바', 'JVM']);
   const token = /^https:\/\/mcp\.example\/d\/([\w-]{43})$/.exec(ok.url)![1];
   assert.match(jobs.get(token)!.html, /본문/);
 
@@ -82,9 +84,13 @@ test('writePost: 입력 검증, 링크 생성, 상한', () => {
   assert.equal(errorCode('a'.repeat(51), body), 'INVALID_INPUT');
   assert.equal(errorCode('두\n줄', body), 'INVALID_INPUT');
   assert.equal(errorCode('제목', '  '), 'INVALID_INPUT');
+  assert.equal(errorCode('제목', body, jobs, []), 'INVALID_INPUT');
+  assert.equal(errorCode('제목', body, jobs, ['a', 'b', 'c', 'd', 'e', 'f']), 'INVALID_INPUT');
+  assert.equal(errorCode('제목', body, jobs, ['a,b']), 'INVALID_INPUT');
+  assert.equal(errorCode('제목', body, jobs, ['  ']), 'INVALID_INPUT');
   // 다이어그램 0~5개, 규칙 위반 SVG 거부
-  assert.ok(writePost(jobs, base, '제목', '본문').ok);
-  assert.ok(writePost(jobs, base, '제목', Array(5).fill(svg).join('\n\n')).ok);
+  assert.ok(writePost(jobs, base, '제목', '본문', tags).ok);
+  assert.ok(writePost(jobs, base, '제목', Array(5).fill(svg).join('\n\n'), tags).ok);
   assert.equal(errorCode('제목', Array(6).fill(svg).join('\n\n')), 'INVALID_INPUT');
   assert.equal(errorCode('제목', body + '\n\n```svg\n<svg><foreignObject/></svg>\n```'), 'INVALID_INPUT');
 
@@ -119,7 +125,7 @@ test('JobStore: TTL, lease, 재시도, 완료', () => {
 
 test('jobRouter: 조회는 소비하지 않고, 제목을 이스케이프한다', async () => {
   const store = new JobStore();
-  const { token } = store.create('<script>x</script>', '<p>본문</p>')!;
+  const { token } = store.create('<script>x</script>', '<p>본문</p>', ['태그'])!;
   const server = express().use(jobRouter(store)).listen(0);
   try {
     const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -133,7 +139,7 @@ test('jobRouter: 조회는 소비하지 않고, 제목을 이스케이프한다'
     assert.doesNotMatch(html, /<script>/);
     assert.match(html, /id="save-slot"/);
 
-    assert.deepEqual(await (await post('claim')).json(), { title: '<script>x</script>', html: '<p>본문</p>' });
+    assert.deepEqual(await (await post('claim')).json(), { title: '<script>x</script>', html: '<p>본문</p>', tags: ['태그'] });
     assert.equal((await post('claim')).status, 409);
     assert.equal((await post('release')).status, 204);
     assert.equal((await post('claim')).status, 200);

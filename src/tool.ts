@@ -5,6 +5,8 @@ import type { JobStore } from './jobs.js';
 
 export const TITLE_MAX = 50;
 export const CONTENT_MAX = 50_000;
+export const TAGS_MAX = 5;
+export const TAG_LEN_MAX = 30;
 
 const DESCRIPTION = `현재 대화(또는 사용자가 지정한 구간)를 정리해 티스토리 임시저장용 일회용 링크를 만든다. 발행하지 않는다.
 이 도구만으로는 저장되지 않는다. 사용자가 링크를 열어 미리보기를 확인하고 임시저장 버튼을 눌러야 저장된다. 호출 후 반환된 url을 클릭 가능한 링크로 안내하고, 저장 완료라고 말하지 않는다. 링크는 expiresAt까지 유효하다.
@@ -13,6 +15,7 @@ const DESCRIPTION = `현재 대화(또는 사용자가 지정한 구간)를 정�
 - 대화에 없는 내용을 추가하지 않는다.
 - 본문은 마크다운으로 작성한다. 제목, 목록, 표, 언어를 지정한 코드블록, 인용, 링크, 굵게/기울임을 쓸 수 있다. 이미지 URL과 mermaid는 지원하지 않는다. 그림은 아래 SVG 다이어그램으로만 넣는다.
 - 제목은 한 줄(${TITLE_MAX}자 이내)로 쓰고, 다루는 대주제 전체 범위와 본문 형식을 반영한다. 본문이 개념 정리면 "~ 개념 정리"처럼 쓰고, 질문·답 형식이 아니면 "질문 정리"라고 하지 않는다.
+- tags에는 대화 내용을 바탕으로 검색에 많이 쓰일 만한 키워드 ${TAGS_MAX}개를 고른다. 사람들이 실제로 검색창에 칠 법한 일반 명칭(기술명, 개념명, 문제 상황)을 우선하고, 너무 넓은 단어("개발", "정리")와 글 제목 통째는 피한다. 태그 하나는 ${TAG_LEN_MAX}자 이내, 쉼표 없이 쓴다.
 - 호출 후 어느 대화 범위를 사용했는지 사용자에게 한 줄로 알린다.
 - 사용자가 다른 구조나 템플릿을 지정하면 그것을 따른다. 지정이 없으면 아래 기본 템플릿을 쓴다.
 
@@ -48,7 +51,7 @@ const DESCRIPTION = `현재 대화(또는 사용자가 지정한 구간)를 정�
 export type ErrorCode = 'INVALID_INPUT' | 'SERVER_BUSY' | 'UNKNOWN';
 
 export type WritePostResult =
-  | { ok: true; url: string; expiresAt: string; title: string }
+  | { ok: true; url: string; expiresAt: string; title: string; tags: string[] }
   | { ok: false; errorCode: ErrorCode; message: string };
 
 export function validateInput(title: string, content: string): string | undefined {
@@ -58,6 +61,16 @@ export function validateInput(title: string, content: string): string | undefine
   if (content.trim().length < 1 || content.length > CONTENT_MAX) {
     return `content_markdown은 1~${CONTENT_MAX}자여야 합니다 (현재 ${content.length}자).`;
   }
+}
+
+/** 앞뒤 공백을 지우고 중복을 뺀 태그 목록, 또는 오류 메시지 */
+export function normalizeTags(tags: string[]): string[] | string {
+  const clean = [...new Set(tags.map((t) => t.trim().replace(/^#/, '')))];
+  if (clean.length < 1 || clean.length > TAGS_MAX) return `tags는 1~${TAGS_MAX}개여야 합니다 (현재 ${clean.length}개).`;
+  // 티스토리는 tags를 쉼표로 구분한 한 문자열로 받는다
+  const bad = clean.find((t) => t.length < 1 || t.length > TAG_LEN_MAX || /[,\r\n]/.test(t));
+  if (bad !== undefined) return `태그는 1~${TAG_LEN_MAX}자, 쉼표·줄바꿈 없이 써야 합니다: "${bad}"`;
+  return clean;
 }
 
 /** 변환된 HTML의 다이어그램 개수와 규칙 위반을 검사한다. 위반 SVG는 코드블록(language-svg)으로 남는다. */
@@ -70,17 +83,19 @@ export function validateDiagrams(html: string): string | undefined {
   }
 }
 
-export function writePost(jobs: JobStore, publicUrl: URL, title: string, content: string): WritePostResult {
+export function writePost(jobs: JobStore, publicUrl: URL, title: string, content: string, tags: string[]): WritePostResult {
   const invalid = validateInput(title, content);
   if (invalid) return { ok: false, errorCode: 'INVALID_INPUT', message: invalid };
+  const cleanTags = normalizeTags(tags);
+  if (typeof cleanTags === 'string') return { ok: false, errorCode: 'INVALID_INPUT', message: cleanTags };
   const cleanTitle = title.trim();
   try {
     const html = markdownToTistoryHtml(content);
     const badDiagrams = validateDiagrams(html);
     if (badDiagrams) return { ok: false, errorCode: 'INVALID_INPUT', message: badDiagrams };
-    const job = jobs.create(cleanTitle, html);
+    const job = jobs.create(cleanTitle, html, cleanTags);
     if (!job) return { ok: false, errorCode: 'SERVER_BUSY', message: '대기 중인 글이 너무 많습니다. 잠시 후 다시 시도하세요.' };
-    return { ok: true, url: new URL(`/d/${job.token}`, publicUrl).href, expiresAt: new Date(job.expiresAt).toISOString(), title: cleanTitle };
+    return { ok: true, url: new URL(`/d/${job.token}`, publicUrl).href, expiresAt: new Date(job.expiresAt).toISOString(), title: cleanTitle, tags: cleanTags };
   } catch (e) {
     return { ok: false, errorCode: 'UNKNOWN', message: (e as Error).message };
   }
@@ -95,13 +110,14 @@ export function registerWritePost(server: McpServer, jobs: JobStore, publicUrl: 
       inputSchema: {
         title: z.string().describe(`글 제목. 한 줄, 1~${TITLE_MAX}자`),
         content_markdown: z.string().describe(`마크다운 본문. 1~${CONTENT_MAX}자`),
+        tags: z.array(z.string()).describe(`검색에 많이 쓰일 키워드 ${TAGS_MAX}개. 각 1~${TAG_LEN_MAX}자, 쉼표 없이`),
       },
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
-    async ({ title, content_markdown }) => {
-      const result = writePost(jobs, publicUrl, title, content_markdown);
+    async ({ title, content_markdown, tags }) => {
+      const result = writePost(jobs, publicUrl, title, content_markdown, tags);
       // 본문과 토큰이 든 url은 로그에 남기지 않는다
-      console.log(`[tistory_write_post] ok=${result.ok} titleLen=${title.length} contentLen=${content_markdown.length}` +
+      console.log(`[tistory_write_post] ok=${result.ok} titleLen=${title.length} contentLen=${content_markdown.length} tags=${tags.length}` +
         (result.ok ? '' : ` errorCode=${result.errorCode}`));
       return { content: [{ type: 'text', text: JSON.stringify(result) }], isError: !result.ok };
     },

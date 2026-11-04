@@ -13,6 +13,7 @@ export const PAGE_REQUESTS_PER_MIN = 60;
 export interface Job {
   title: string;
   html: string;
+  tags: string[];
   expiresAt: number;
   leaseUntil: number;
 }
@@ -27,12 +28,12 @@ export class JobStore {
   constructor(private readonly now: () => number = Date.now) {}
 
   /** 전체 상한을 넘으면 undefined */
-  create(title: string, html: string): { token: string; expiresAt: number } | undefined {
+  create(title: string, html: string, tags: string[] = []): { token: string; expiresAt: number } | undefined {
     for (const [token, job] of this.jobs) if (job.expiresAt <= this.now()) this.jobs.delete(token);
     if (this.jobs.size >= JOB_MAX) return undefined;
     const token = randomBytes(32).toString('base64url');
     const expiresAt = this.now() + JOB_TTL_MS;
-    this.jobs.set(token, { title, html, expiresAt, leaseUntil: 0 });
+    this.jobs.set(token, { title, html, tags, expiresAt, leaseUntil: 0 });
     return { token, expiresAt };
   }
 
@@ -101,11 +102,12 @@ export function disableExternalLinks(html: string): string {
   });
 }
 
-export function previewPage(job: Pick<Job, 'title' | 'html'>): string {
+export function previewPage(job: Pick<Job, 'title' | 'html'> & { tags?: string[] }): string {
   return page(job.title, `<div id="save-slot" role="status" aria-live="polite">임시저장하려면 Chrome 확장 프로그램을 설치하고 이 페이지를 새로고침하세요.</div>
 <p role="note">이 글은 Claude 대화에서 만들어진 사용자 생성 콘텐츠이며, 서비스 운영자가 작성하거나 검토하지 않았습니다. 이 페이지는 비밀번호나 결제 정보를 요구하지 않습니다. 미리보기에서는 외부 링크가 동작하지 않습니다.</p>
 <h1>${escapeHtml(job.title)}</h1>
-<article>${disableExternalLinks(job.html)}</article>`);
+${job.tags?.length ? `<p>태그: ${job.tags.map((t) => `#${escapeHtml(t)}`).join(' ')}</p>
+` : ''}<article>${disableExternalLinks(job.html)}</article>`);
 }
 
 /** POST /mcp 앞에 둔다. 작업을 만드는 tools/call만 IP별로 제한한다. */
@@ -155,7 +157,7 @@ export function jobRouter(store: JobStore): Router {
     const job = store.claim(req.params.token);
     if (!job) return res.status(404).json({ errorCode: 'LINK_EXPIRED' });
     if (job === 'busy') return res.status(409).json({ errorCode: 'IN_PROGRESS' });
-    res.json({ title: job.title, html: job.html });
+    res.json({ title: job.title, html: job.html, tags: job.tags });
   });
 
   router.post('/api/jobs/:token/complete', (req, res) => {

@@ -12,14 +12,14 @@ async function myBlogs() {
   return parseBlogs(res.type, res.status, await res.text());
 }
 
-async function saveDraft(blog, { title, html }) {
+async function saveDraft(blog, { title, html, tags }) {
   const res = await fetch(`https://${blog}.tistory.com/manage/drafts`, {
     method: 'POST',
     credentials: 'include',
     redirect: 'manual',
     signal: AbortSignal.timeout(TIMEOUT_MS),
     headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/plain, */*' },
-    body: JSON.stringify({ title, content: html, tags: '', categoryId: 0, totalWritingTimeMs: 0 }),
+    body: JSON.stringify({ title, content: html, tags: Array.isArray(tags) ? tags.join(',') : '', categoryId: 0, totalWritingTimeMs: 0 }),
   });
   return classifyDraft(res.type, res.status, await res.text());
 }
@@ -74,9 +74,9 @@ async function save(serverOrigin, token, blog, diagrams) {
 
   let result;
   try {
-    const { title, html } = await claimed.json();
+    const { title, html, tags } = await claimed.json();
     const attached = await attachDiagrams(blog, html, diagrams);
-    result = attached.ok ? await saveDraft(blog, { title, html: attached.html }) : attached;
+    result = attached.ok ? await saveDraft(blog, { title, html: attached.html, tags }) : attached;
   } catch {
     result = { ok: false, errorCode: 'UNKNOWN' };
   }
