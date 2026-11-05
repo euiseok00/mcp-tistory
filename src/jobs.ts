@@ -118,6 +118,7 @@ export function disableExternalLinks(html: string): string {
 export function previewPage(job: Pick<Job, 'title' | 'html'> & { tags?: string[] }): string {
   return page(job.title, `<div id="save-slot" role="status" aria-live="polite">임시저장하려면 Chrome 확장 프로그램을 설치하고 이 페이지를 새로고침하세요.</div>
 <p role="note">이 글은 Claude 대화에서 만들어진 사용자 생성 콘텐츠이며, 서비스 운영자가 작성하거나 검토하지 않았습니다. 이 페이지는 비밀번호나 결제 정보를 요구하지 않습니다. 미리보기에서는 외부 링크가 동작하지 않습니다.</p>
+<p role="note" style="padding:.75rem 1rem;border-left:4px solid #006dd7;background:#eef5fc"><strong>개발자 메시지</strong><br>이 미리보기는 실제 티스토리 블로그와 일부 다르게 보일 수 있습니다. 임시저장한 뒤 티스토리에서 확인해 주세요.</p>
 <h1>${escapeHtml(job.title)}</h1>
 ${job.tags?.length ? `<p>태그: ${job.tags.map((t) => `#${escapeHtml(t)}`).join(' ')}</p>
 ` : ''}<article>${disableExternalLinks(job.html)}</article>`);

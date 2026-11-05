@@ -157,6 +157,7 @@ test('미리보기: 외부 링크 비활성화, 사용자 생성 콘텐츠 안�
   const html = previewPage({ title: 't', html: '<a href="https://evil.example">x</a>' });
   assert.doesNotMatch(html, /evil\.example/);
   assert.match(html, /사용자 생성 콘텐츠/);
+  assert.match(html, /개발자 메시지/);
 
   // 저장되는 글의 링크는 그대로
   const store = new JobStore();
