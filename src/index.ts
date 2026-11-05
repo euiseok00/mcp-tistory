@@ -23,6 +23,15 @@ app.use(jobRouter(jobs));
 
 app.get('/privacy', (_req, res) => void res.type('html').send(PRIVACY_HTML));
 
+// 임시 진단: trust proxy 홉 수 확인용. 요청자 자신의 값만 돌려주고 로그에 남기지 않는다. 확인 후 제거
+app.get('/whoami', (req, res) => void res.set('Cache-Control', 'no-store').json({
+  ip: req.ip,
+  ips: req.ips,
+  remote: req.socket.remoteAddress,
+  xff: req.headers['x-forwarded-for'] ?? null,
+  xRealIp: req.headers['x-real-ip'] ?? null,
+}));
+
 // 인증 없음: 누구나 작업을 만들 수 있다. 남용은 toolCallGuard(IP별 제한)와 JOB_MAX로 막고, 저장은 사용자의 버튼 클릭으로만 한다
 // stateless + JSON 응답으로 단순하게 유지
 app.post('/mcp', ...toolCallGuard(), async (req, res) => {
