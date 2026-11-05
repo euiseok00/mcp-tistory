@@ -61,6 +61,7 @@ th,td{border:1px solid #ccc;padding:.4rem .6rem;text-align:left;vertical-align:t
 <li>모든 통신은 HTTPS로 암호화합니다.</li>
 <li>미리보기 링크는 추측할 수 없는 256비트 임의 값으로 만듭니다.</li>
 <li>글 본문을 디스크와 로그에 남기지 않습니다.</li>
+<li>링크만 있으면 누구나 30분 동안 글을 볼 수 있으니, 링크를 다른 사람과 공유하지 마세요.</li>
 </ul>
 
 <h2>8. 개인정보 보호책임자와 문의</h2>
@@ -68,6 +69,14 @@ th,td{border:1px solid #ccc;padding:.4rem .6rem;text-align:left;vertical-align:t
 
 <h2>9. 변경</h2>
 <p>이 방침이 바뀌면 이 페이지에 시행일과 함께 게시합니다.</p>
+
+<h2>10. 이용 시 알아 둘 점</h2>
+<ul>
+<li>티스토리 공식 API가 아닌 에디터 내부 기능을 씁니다. 예고 없이 동작하지 않을 수 있습니다.</li>
+<li>PC Chrome만 지원합니다. 저장은 임시저장까지이며, 발행은 직접 합니다.</li>
+<li>일반 이미지 첨부와 카테고리 지정은 아직 지원하지 않습니다.</li>
+<li>대화가 길어 앞부분이 압축되면 Claude가 원하는 구간을 정확히 못 볼 수 있습니다.</li>
+</ul>
 </body>
 </html>
 `;
