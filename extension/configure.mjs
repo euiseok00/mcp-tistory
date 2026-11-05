@@ -1,4 +1,4 @@
-// .env의 PUBLIC_URL로 manifest.json을 만든다. tailnet 이름을 저장소에 남기지 않기 위해 생성 파일은 git에서 제외한다.
+// .env의 PUBLIC_URL로 manifest.json을 만든다. 서버 주소가 배포마다 다를 수 있어 생성 파일은 git에서 제외한다.
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const dir = new URL('./', import.meta.url);

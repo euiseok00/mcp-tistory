@@ -1,15 +1,11 @@
 import { test } from 'node:test';
-import { mkdtempSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { DIAGRAM_MAX, diagramSvg, isWellFormedXml, markdownToTistoryHtml } from './markdown.js';
 import express from 'express';
 import type { AddressInfo } from 'node:net';
 import { writePost } from './tool.js';
-import { JOB_MAX, JOB_TTL_MS, JobStore, LEASE_MS, PAGE_REQUESTS_PER_MIN, TOOL_CALLS_PER_MIN, disableExternalLinks, jobRouter, previewPage, toolCallGuard } from './jobs.js';
+import { JOB_MAX, JOB_TTL_MS, JobStore, LEASE_MS, PAGE_REQUESTS_PER_MIN, TOOL_CALLS_PER_MIN, disableExternalLinks, isClaudeIp, jobRouter, previewPage, toolCallGuard } from './jobs.js';
 import { DIAGRAM_IMG, classifyDraft, classifyUpload, imagePlaceholder, parseBlogs } from '../extension/classify.js';
-import { OwnerAuthProvider, passphraseMatches } from './auth.js';
 
 test('markdown: 티스토리 구조 유지, 위험 HTML 제거', () => {
   const html = markdownToTistoryHtml(
@@ -192,6 +188,15 @@ test('요청 제한: tools/call만 제한, 배치 거부, 페이지 제한', asy
   }
 });
 
+test('isClaudeIp: Anthropic 아웃바운드 대역만', () => {
+  assert.ok(isClaudeIp('160.79.106.129'));
+  assert.ok(isClaudeIp('::ffff:153.61.223.255'));
+  assert.ok(!isClaudeIp('160.79.112.0'));
+  assert.ok(!isClaudeIp('127.0.0.1'));
+  assert.ok(!isClaudeIp('2607:6bc0::1'));
+  assert.ok(!isClaudeIp(undefined));
+});
+
 test('extension classify: 실측 응답 분류', () => {
   assert.deepEqual(classifyDraft('basic', 200, '{"success":true,"total":6,"draft":{"sequence":28}}'), { ok: true, draftId: 28 });
   const code = (type: string, status: number, body: string) => (classifyDraft(type, status, body) as { errorCode: string }).errorCode;
@@ -207,63 +212,6 @@ test('extension classify: 실측 응답 분류', () => {
   assert.equal((parseBlogs('opaqueredirect', 0, '') as { errorCode: string }).errorCode, 'SESSION_EXPIRED');
   assert.equal((parseBlogs('basic', 200, '<html>') as { errorCode: string }).errorCode, 'SESSION_EXPIRED');
   assert.equal((parseBlogs('basic', 200, '{"status":500}') as { errorCode: string }).errorCode, 'UNKNOWN');
-});
-
-test('auth: 패스프레이즈 확인, 실패 잠금, 코드 1회 사용, 토큰 검증', async () => {
-  assert.ok(passphraseMatches('correct horse battery', 'correct horse battery'));
-  assert.ok(!passphraseMatches('wrong', 'correct horse battery'));
-
-  const resource = new URL('https://mcp.example/mcp');
-  const p = new OwnerAuthProvider('correct horse battery', resource);
-  const client = { client_id: 'c1', redirect_uris: ['https://claude.ai/api/mcp/auth_callback'] };
-  const startAuth = async () => {
-    let html = '';
-    await p.authorize(client, { codeChallenge: 'ch', redirectUri: client.redirect_uris[0], state: 's1' },
-      { type: () => ({ send: (h: string) => { html = h; } }) } as never);
-    return /name="request_id" value="([0-9a-f]+)"/.exec(html)![1];
-  };
-
-  const req = await startAuth();
-  assert.ok('error' in p.consent(req, 'wrong'));
-  const ok = p.consent(req, 'correct horse battery');
-  assert.ok('redirect' in ok);
-  const url = new URL(ok.redirect);
-  assert.equal(url.searchParams.get('state'), 's1');
-  const code = url.searchParams.get('code')!;
-
-  assert.equal(await p.challengeForAuthorizationCode(client, code), 'ch');
-  const tokens = await p.exchangeAuthorizationCode(client, code);
-  await assert.rejects(p.exchangeAuthorizationCode(client, code)); // 재사용 불가
-  assert.equal((await p.verifyAccessToken(tokens.access_token)).resource?.href, resource.href);
-  await assert.rejects(p.verifyAccessToken('nope'));
-
-  const refreshed = await p.exchangeRefreshToken(client, tokens.refresh_token!);
-  assert.ok(refreshed.access_token);
-  await assert.rejects(p.exchangeRefreshToken(client, tokens.refresh_token!)); // 회전됨
-
-  // 상태 파일: 재시작해도 토큰 유지, 주소가 바뀌면 폐기
-  const file = join(mkdtempSync(join(tmpdir(), 'oauth-')), 'state.json');
-  const p1 = new OwnerAuthProvider('correct horse battery', resource, file);
-  await p1.clientsStore.registerClient(client as never);
-  const r1 = await p1.consent(await (async () => {
-    let html = '';
-    await p1.authorize(client, { codeChallenge: 'ch', redirectUri: client.redirect_uris[0] },
-      { type: () => ({ send: (h: string) => { html = h; } }) } as never);
-    return /name="request_id" value="([0-9a-f]+)"/.exec(html)![1];
-  })(), 'correct horse battery') as { redirect: string };
-  const t1 = await p1.exchangeAuthorizationCode(client, new URL(r1.redirect).searchParams.get('code')!);
-  assert.doesNotMatch(readFileSync(file, 'utf8'), new RegExp(t1.access_token));
-  const p2 = new OwnerAuthProvider('correct horse battery', resource, file);
-  assert.ok(p2.clientsStore.getClient('c1'));
-  await p2.verifyAccessToken(t1.access_token);
-  assert.ok((await p2.exchangeRefreshToken(client, t1.refresh_token!)).access_token);
-  const p3 = new OwnerAuthProvider('correct horse battery', new URL('https://other.example/mcp'), file);
-  await assert.rejects(p3.verifyAccessToken(t1.access_token));
-
-  // 5회 실패 시 정답도 잠김
-  const req2 = await startAuth();
-  for (let i = 0; i < 5; i++) p.consent(req2, 'wrong');
-  assert.ok('error' in p.consent(req2, 'correct horse battery'));
 });
 
 test('markdown: svg 코드블록은 다이어그램 이미지, 규칙 위반은 코드블록', () => {

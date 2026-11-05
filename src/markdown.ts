@@ -6,7 +6,7 @@ import sanitizeHtml from 'sanitize-html';
 export const COLOR_IMPORTANT = '#006dd7';
 export const COLOR_WARNING = '#ee2323';
 
-// 티스토리 에디터 마크다운 모드 출력과 같은 구조만 허용 (userMD/2.티스토리API조사.md)
+// 티스토리 에디터 마크다운 모드 출력과 같은 구조만 허용
 // + 목차 앵커용 h2/h3 id, 강조용 span color(두 색만), 목차 스타일
 // hr은 블로그 스킨에서 ". . ."으로 보여 뺀다. 섹션은 제목과 표로 나눈다
 const SANITIZE: sanitizeHtml.IOptions = {
@@ -50,7 +50,7 @@ const fixBold = (html: string) => html.replace(LEFTOVER_BOLD, (m, code, inner) =
 const EMOJI = /\p{Extended_Pictographic}️?(‍\p{Extended_Pictographic}️?)*/gu;
 const EMOJI_SPAN = '<span style="font-size:1.25em">$&</span>';
 
-// 스킨 기본 스타일이 약해서 제목·표·인용 박스에 인라인 스타일을 붙인다 (userMD/feedback01.md V1~V3)
+// 스킨 기본 스타일이 약해서 제목·표·인용 박스에 인라인 스타일을 붙인다
 const H_STYLE = {
   '2': 'font-size:1.6em;font-weight:700;border-bottom:2px solid #222222;padding-bottom:0.3em;margin-top:2em',
   '3': 'font-size:1.25em;font-weight:700;margin-top:1.5em',

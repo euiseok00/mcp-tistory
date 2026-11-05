@@ -1,51 +1,31 @@
-import express from 'express';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js';
-import { getOAuthProtectedResourceMetadataUrl, mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
-import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
-import { consentPage, OwnerAuthProvider } from './auth.js';
 import { JobStore, jobRouter, toolCallGuard } from './jobs.js';
 import { registerWritePost } from './tool.js';
-
-function required(name: string): string {
-  const v = process.env[name];
-  if (!v) throw new Error(`환경변수 ${name}가 필요합니다.`);
-  return v;
-}
+import { PRIVACY_HTML } from './privacy.js';
 
 const PORT = Number(process.env.PORT ?? 3000);
-// 외부에서 보이는 주소 (Tailscale Funnel 고정 URL)
-if (process.env.PUBLIC_URL === '') throw new Error('PUBLIC_URL이 비어 있습니다. .env에 Tailscale 주소를 넣으세요.');
+// 외부에서 보이는 주소 (Railway 도메인). 링크와 allowedHosts에 쓴다
+if (process.env.PUBLIC_URL === '') throw new Error('PUBLIC_URL이 비어 있습니다. 서비스 주소를 넣으세요.');
 const PUBLIC_URL = new URL(process.env.PUBLIC_URL ?? `http://localhost:${PORT}`);
 const MCP_URL = new URL('/mcp', PUBLIC_URL);
-const passphrase = required('OWNER_PASSPHRASE');
-if (passphrase.length < 16) throw new Error('OWNER_PASSPHRASE는 16자 이상이어야 합니다.');
 
 const jobs = new JobStore();
-const auth = new OwnerAuthProvider(passphrase, MCP_URL, process.env.OAUTH_STATE_FILE || undefined);
 
 const app = createMcpExpressApp({
   host: '0.0.0.0',
   allowedHosts: [...new Set([PUBLIC_URL.hostname, 'localhost', '127.0.0.1'])],
 });
-app.set('trust proxy', 1); // Funnel 프록시 1단계 뒤에 있음. rate limit이 실제 IP를 보게 한다
-
-app.use(mcpAuthRouter({ provider: auth, issuerUrl: PUBLIC_URL, resourceServerUrl: MCP_URL, resourceName: 'Tistory MCP' }));
+app.set('trust proxy', 1); // 호스팅 프록시 1단계 뒤에 있음. rate limit이 실제 IP를 보게 한다
 
 app.use(jobRouter(jobs));
 
-app.post('/consent', express.urlencoded({ extended: false }), (req, res) => {
-  const requestId = String(req.body?.request_id ?? '');
-  const result = auth.consent(requestId, String(req.body?.passphrase ?? ''));
-  if ('redirect' in result) return res.redirect(302, result.redirect);
-  res.status(400).type('html').send(consentPage(requestId, undefined, result.error));
-});
+app.get('/privacy', (_req, res) => void res.type('html').send(PRIVACY_HTML));
 
-const bearer = requireBearerAuth({ verifier: auth, resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(MCP_URL) });
-
-// stateless + JSON 응답: 터널 종류와 무관하게 단순하게 유지
-app.post('/mcp', ...toolCallGuard(), bearer, async (req, res) => {
+// 인증 없음: 누구나 작업을 만들 수 있다. 남용은 toolCallGuard(IP별 제한)와 JOB_MAX로 막고, 저장은 사용자의 버튼 클릭으로만 한다
+// stateless + JSON 응답으로 단순하게 유지
+app.post('/mcp', ...toolCallGuard(), async (req, res) => {
   const server = new McpServer({ name: 'tistory-mcp', version: '1.0.0' });
   registerWritePost(server, jobs, PUBLIC_URL);
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
@@ -63,7 +43,7 @@ app.post('/mcp', ...toolCallGuard(), bearer, async (req, res) => {
 });
 
 // stateless 모드는 GET(SSE 스트림)·DELETE(세션 종료)를 쓰지 않는다
-app.all('/mcp', bearer, (_req, res) => {
+app.all('/mcp', (_req, res) => {
   res.status(405).set('Allow', 'POST').json({ jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed' }, id: null });
 });
 

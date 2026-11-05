@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
+import { BlockList } from 'node:net';
 import { Router, type RequestHandler } from 'express';
-import { rateLimit } from 'express-rate-limit';
+import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
 import sanitizeHtml from 'sanitize-html';
 
 export const JOB_TTL_MS = 30 * 60_000;
@@ -9,6 +10,18 @@ export const JOB_MAX = 500;
 // 분당 10개면 IP 하나가 TTL 30분 동안 만들 수 있는 작업은 300개다. JOB_MAX를 혼자 채우지 못한다.
 export const TOOL_CALLS_PER_MIN = 10;
 export const PAGE_REQUESTS_PER_MIN = 60;
+// Claude 커넥터 요청은 모든 사용자가 Anthropic 공용 IP에서 온다(2026-11-05 실측 160.79.106.129). IP별로 세면 전원이 10회를 나눠 쓴다.
+// shortcut: Claude 사용자 전체가 이 한도 하나를 공유한다. 한 사람이 다 써 버릴 수 있으니, 사용자가 늘면 사용자 식별(인증)을 붙인다.
+export const CLAUDE_TOOL_CALLS_PER_MIN = 30;
+
+// https://platform.claude.com/docs/en/api/ip-addresses 의 아웃바운드 대역. 바뀌면 공지된다
+const claudeOutbound = new BlockList();
+claudeOutbound.addSubnet('160.79.104.0', 21, 'ipv4');
+claudeOutbound.addSubnet('153.61.208.0', 20, 'ipv4');
+export const isClaudeIp = (ip = '') => {
+  const v4 = ip.replace(/^::ffff:/, '');
+  return /^\d+\.\d+\.\d+\.\d+$/.test(v4) && claudeOutbound.check(v4, 'ipv4');
+};
 
 export interface Job {
   title: string;
@@ -110,7 +123,7 @@ ${job.tags?.length ? `<p>태그: ${job.tags.map((t) => `#${escapeHtml(t)}`).join
 ` : ''}<article>${disableExternalLinks(job.html)}</article>`);
 }
 
-/** POST /mcp 앞에 둔다. 작업을 만드는 tools/call만 IP별로 제한한다. */
+/** POST /mcp 앞에 둔다. 작업을 만드는 tools/call만 제한한다. Claude 대역은 공용 한도 하나, 그 밖은 IP별. */
 export function toolCallGuard(): RequestHandler[] {
   const reject = (req: Parameters<RequestHandler>[0], res: Parameters<RequestHandler>[1], status: number, message: string) =>
     res.status(status).json({ jsonrpc: '2.0', error: { code: -32000, message }, id: req.body?.id ?? null });
@@ -124,7 +137,8 @@ export function toolCallGuard(): RequestHandler[] {
     },
     rateLimit({
       windowMs: 60_000,
-      limit: TOOL_CALLS_PER_MIN,
+      limit: (req) => (isClaudeIp(req.ip) ? CLAUDE_TOOL_CALLS_PER_MIN : TOOL_CALLS_PER_MIN),
+      keyGenerator: (req) => (isClaudeIp(req.ip) ? 'claude' : ipKeyGenerator(req.ip ?? '')),
       standardHeaders: true,
       legacyHeaders: false,
       skip: (req) => req.body?.method !== 'tools/call',
