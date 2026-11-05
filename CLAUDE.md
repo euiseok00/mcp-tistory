@@ -38,7 +38,7 @@ CI(`.github/workflows/ci.yml`)는 push마다 `tsc --noEmit` + `npm test`.
 - **쿠키를 다루지 않음**: 저장은 확장 프로그램이 브라우저 세션으로 한다. `cookies` 권한도 없다.
 - **저장은 버튼 클릭으로만**: `/mcp`가 인증 없이 열려 있어 누구나 링크를 만들 수 있다. 링크를 여는 것만으로 저장하면 안 된다.
 - **인증 없음**: 공개 서비스라 사용자 계정이 없다. 남용 방지는 `tools/call` 제한(Anthropic 대역은 공용 `CLAUDE_TOOL_CALLS_PER_MIN`, 그 밖은 IP별 `TOOL_CALLS_PER_MIN`), `tools/call` 배치 거부, 전체 작업 상한(`JOB_MAX`)뿐이다.
-- `trust proxy = 1`: 프록시 1단계 뒤에서 rate limit이 실제 IP를 보게 한다. Railway 엣지에서 맞는지는 미실측.
+- `trust proxy = 2`: Railway는 `X-Forwarded-For`를 `클라이언트, 엣지 IP`로 새로 쓰고(위조 값 버림) 내부 홉(`100.64.0.x`)을 거친다. 1이면 매번 바뀌는 엣지 IP를 클라이언트로 보아 요청 제한이 깨진다 (2026-11-05 실측).
 
 ## 티스토리 내부 API (비공식)
 

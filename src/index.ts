@@ -17,20 +17,13 @@ const app = createMcpExpressApp({
   host: '0.0.0.0',
   allowedHosts: [...new Set([PUBLIC_URL.hostname, 'localhost', '127.0.0.1'])],
 });
-app.set('trust proxy', 1); // 호스팅 프록시 1단계 뒤에 있음. rate limit이 실제 IP를 보게 한다
+// Railway: X-Forwarded-For = "클라이언트, 엣지" + 내부 홉. 위조 값은 Railway가 버린다 (2026-11-05 실측). 2홉을 믿어야 req.ip가 클라이언트다
+app.set('trust proxy', 2);
 
 app.use(jobRouter(jobs));
 
 app.get('/privacy', (_req, res) => void res.type('html').send(PRIVACY_HTML));
 
-// 임시 진단: trust proxy 홉 수 확인용. 요청자 자신의 값만 돌려주고 로그에 남기지 않는다. 확인 후 제거
-app.get('/whoami', (req, res) => void res.set('Cache-Control', 'no-store').json({
-  ip: req.ip,
-  ips: req.ips,
-  remote: req.socket.remoteAddress,
-  xff: req.headers['x-forwarded-for'] ?? null,
-  xRealIp: req.headers['x-real-ip'] ?? null,
-}));
 
 // 인증 없음: 누구나 작업을 만들 수 있다. 남용은 toolCallGuard(IP별 제한)와 JOB_MAX로 막고, 저장은 사용자의 버튼 클릭으로만 한다
 // stateless + JSON 응답으로 단순하게 유지

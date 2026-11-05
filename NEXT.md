@@ -7,15 +7,16 @@
 - 저장소는 공개 상태이고 MIT 라이선스다.
 - 서버는 Railway(US West)에서 돈다. 임시저장까지 Claude 웹에서 확인했다.
 - 약관은 사용자가 확인하고 공개하기로 판단했다 (2026-11-05).
-- OAuth 제거, 개인정보처리방침, Claude 대역 공용 요청 제한이 작업 트리에 있다. push 전까지 배포된 서버는 이전 버전(OAuth 보호)이다.
+- 인증 없는 `/mcp`, `/privacy`, Claude 대역 공용 요청 제한이 배포됐다 (`8af3328`, 2026-11-05).
 
 ## 1. 배포
 
-- [ ] 커밋하고 `main`에 push한다. push하는 즉시 `/mcp`가 인증 없이 공개된다.
-- [ ] Railway에서 OAuth용 볼륨(`/app/data`)과 Variables(`OWNER_PASSPHRASE`, `OAUTH_STATE_FILE`, `RAILWAY_RUN_UID`)를 지운다. 남길 Variables는 `PUBLIC_URL`, `PORT=3000`이다.
-- [ ] Claude 커넥터를 삭제하고 같은 URL(`/mcp`)로 다시 추가한다. 인증 설정은 비운다.
-- [ ] 저장 흐름을 다시 확인하고, `/privacy`가 열리는지 확인한다.
-- [ ] `trust proxy = 1`이 맞는지 확인한다. 틀리면 Claude 요청이 공용 한도(분당 30)가 아니라 IP별 한도(분당 10)로 묶인다.
+- [x] `main`에 push해 배포했다. `/privacy` 200, `/authorize` 404, 인증 없는 `initialize` 200.
+- [x] Railway Variables를 `PUBLIC_URL`, `PORT=3000`만 남기고 정리했다.
+- [x] Claude 커넥터를 인증 없이 다시 연결했다.
+- [ ] 새 배포에서 Claude 웹 → 링크 → 임시저장 흐름을 확인한다.
+- [x] `trust proxy`를 실측해 2로 고쳤다. 1에서는 엣지 IP가 `req.ip`가 되어 요청 제한이 흩어졌다.
+- [ ] 배포 후 같은 IP의 연속 요청에서 `ratelimit-remaining`이 9, 8, 7…로 줄어드는지 확인한다.
 
 ## 2. Railway 운영
 
