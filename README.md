@@ -9,26 +9,34 @@
 ## ✨ 무엇을 하나요
 
 Claude 웹 채팅에서 한 마디로 대화를 블로그 글로 정리해 티스토리 **임시저장**함에 넣습니다.
+웹에서 공부한 내용을 매번 같은 깔끔한 서식(목차, 강조 박스, 다이어그램, 태그)으로 블로그에 쌓을 수 있습니다.
 
 > 💬 "이 대화를 티스토리에 임시저장해줘"
 
-```mermaid
-flowchart LR
-    A["💬 Claude에게 요청<br/>'티스토리에 임시저장해줘'"] --> B["📝 Claude가 정리<br/>제목 · 본문 · 태그 5개"]
-    B --> C["🔗 일회용 링크<br/>미리보기 확인"]
-    C --> D["💾 임시저장 버튼<br/>확장 프로그램이 저장"]
-    D --> E["✅ 티스토리 임시저장함<br/>검토 후 직접 발행"]
-```
+<p align="center"><img src="docs/images/flow.svg" alt="요청, 정리, 미리보기, 저장, 임시저장함 순서의 5단계 흐름" width="860"></p>
 
-저장되는 글에는 목차, 강조 박스, 표·코드블록, 다이어그램 이미지(최대 5개)가 자동으로 들어갑니다.
+## 🖼️ 저장 예시
 
-실제로 이 도구로 저장한 글: [클라이언트와 서버 개념 정리](https://jounges00.tistory.com/23)
+실제로 이 도구로 저장한 글: [에러 분류와 확인 위치, 상태코드·CORS 개념 정리](https://jounges00.tistory.com/24)
 
-| 도입 문단과 목차 | 다이어그램, 표, 핵심 개념 박스 |
-|:---:|:---:|
-| <img src="docs/images/example-toc.png" alt="글 제목 아래 도입 문단과 번호가 매겨진 목차" width="400"> | <img src="docs/images/example-diagram.png" alt="코드 실행 위치를 나누는 다이어그램, 비교 표, 파란색 핵심 개념 박스" width="400"> |
-
-<p align="center"><img src="docs/images/example-warning.png" alt="비교 표 아래 빨간색 주의 박스" width="600"><br><sub>주의할 내용은 빨간색 박스로 표시</sub></p>
+<table>
+<tr><td align="center">
+<b>목차</b> · 대주제·소주제 제목으로 자동 생성<br><br>
+<img src="docs/images/example-toc.png" alt="파란 두 자리 번호와 굵은 대주제, 들여쓴 소주제로 된 목차" width="620">
+</td></tr>
+<tr><td align="center">
+<b>다이어그램</b> · Claude가 그린 SVG를 이미지로 자동 첨부 (최대 5개)<br><br>
+<img src="docs/images/example-diagram.png" alt="클라이언트, 통신 구간, 서버와 각각 확인할 곳을 잇는 다이어그램" width="620">
+</td></tr>
+<tr><td align="center">
+<b>강조 박스</b> · 참고 · 핵심 개념 · 주의 · 왜? · 결론<br><br>
+<img src="docs/images/example-boxes.png" alt="노랑 참고, 파랑 핵심 개념, 빨강 주의, 회색 왜, 초록 결론 박스" width="620">
+</td></tr>
+<tr><td align="center">
+<b>태그</b> · 글 내용에 맞춰 자동으로 붙음<br><br>
+<img src="docs/images/example-tags.png" alt="글 하단의 태그 목록" width="620">
+</td></tr>
+</table>
 
 ## 🚀 시작하기
 
@@ -36,21 +44,11 @@ flowchart LR
 
 - Claude 계정
 - PC Chrome
-- Git, Node.js 20.6 이상, 22 LTS 권장 (확장 프로그램 설치용, 웹 스토어 등록 후 불필요)
 - 티스토리 블로그, Chrome에서 로그인된 상태
 
 ### 1. Chrome 확장 프로그램 설치
 
-Chrome 웹 스토어 등록 전이라 지금은 직접 설치합니다.
-
-```bash
-git clone https://github.com/euiseok00/mcp-tistory.git
-cd mcp-tistory
-echo "PUBLIC_URL=https://mcp-tistory-production.up.railway.app" > .env
-npm run ext:config
-```
-
-`chrome://extensions`에서 **개발자 모드**를 켜고 **압축해제된 확장 프로그램 로드**로 `extension` 폴더를 선택합니다.
+[Chrome 웹 스토어](https://chromewebstore.google.com/detail/mcp-tistory/hbaiomakbjdigmdbljjjoieoblddbohb)에서 **Chrome에 추가**를 누릅니다.
 
 ### 2. Claude 웹에 연결
 

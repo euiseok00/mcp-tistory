@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1072" height="150" viewBox="0 0 1072 150" font-family="Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#9aa4b2"/></marker></defs>
+<rect x="16" y="16" width="180" height="118" rx="12" fill="#f7f8fa" stroke="#d0d7de" stroke-width="1.5"/>
+<circle cx="106.0" cy="44" r="13" fill="#006dd7"/><text x="106.0" y="49" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">1</text>
+<text x="106.0" y="86" text-anchor="middle" font-size="18" font-weight="700" fill="#222">요청</text>
+<text x="106.0" y="112" text-anchor="middle" font-size="13" fill="#666">“티스토리에 임시저장해줘”</text>
+<line x1="202" y1="75.0" x2="225" y2="75.0" stroke="#9aa4b2" stroke-width="2" marker-end="url(#a)"/>
+<rect x="231" y="16" width="180" height="118" rx="12" fill="#f7f8fa" stroke="#d0d7de" stroke-width="1.5"/>
+<circle cx="321.0" cy="44" r="13" fill="#006dd7"/><text x="321.0" y="49" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">2</text>
+<text x="321.0" y="86" text-anchor="middle" font-size="18" font-weight="700" fill="#222">정리</text>
+<text x="321.0" y="112" text-anchor="middle" font-size="13" fill="#666">제목 · 본문 · 태그</text>
+<line x1="417" y1="75.0" x2="440" y2="75.0" stroke="#9aa4b2" stroke-width="2" marker-end="url(#a)"/>
+<rect x="446" y="16" width="180" height="118" rx="12" fill="#f7f8fa" stroke="#d0d7de" stroke-width="1.5"/>
+<circle cx="536.0" cy="44" r="13" fill="#006dd7"/><text x="536.0" y="49" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">3</text>
+<text x="536.0" y="86" text-anchor="middle" font-size="18" font-weight="700" fill="#222">미리보기</text>
+<text x="536.0" y="112" text-anchor="middle" font-size="13" fill="#666">일회용 링크로 확인</text>
+<line x1="632" y1="75.0" x2="655" y2="75.0" stroke="#9aa4b2" stroke-width="2" marker-end="url(#a)"/>
+<rect x="661" y="16" width="180" height="118" rx="12" fill="#f7f8fa" stroke="#d0d7de" stroke-width="1.5"/>
+<circle cx="751.0" cy="44" r="13" fill="#006dd7"/><text x="751.0" y="49" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">4</text>
+<text x="751.0" y="86" text-anchor="middle" font-size="18" font-weight="700" fill="#222">저장</text>
+<text x="751.0" y="112" text-anchor="middle" font-size="13" fill="#666">버튼 한 번 클릭</text>
+<line x1="847" y1="75.0" x2="870" y2="75.0" stroke="#9aa4b2" stroke-width="2" marker-end="url(#a)"/>
+<rect x="876" y="16" width="180" height="118" rx="12" fill="#e8f1fb" stroke="#006dd7" stroke-width="1.5"/>
+<circle cx="966.0" cy="44" r="13" fill="#006dd7"/><text x="966.0" y="49" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">5</text>
+<text x="966.0" y="86" text-anchor="middle" font-size="18" font-weight="700" fill="#222">임시저장함</text>
+<text x="966.0" y="112" text-anchor="middle" font-size="13" fill="#666">검토 후 직접 발행</text>
+</svg>

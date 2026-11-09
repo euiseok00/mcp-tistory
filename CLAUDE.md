@@ -65,12 +65,13 @@ CI(`.github/workflows/ci.yml`)는 push마다 `tsc --noEmit` + `npm test`.
 - Railway 설정 변경은 사용자가 직접 한다. `main` push는 곧 공개 배포다.
 - 문서·주석은 한국어.
 
-## 진행 상황 (2026-11-05)
+## 진행 상황 (2026-11-09)
 
 - [x] Claude 웹 커스텀 커넥터 → 일회용 링크 → 확장 프로그램 → 임시저장 E2E (Railway에서 확인)
 - [x] 태그 5개, SVG 다이어그램 자동 첨부, 목차·도입 디자인
 - [x] 약관 검토(사용자 판단), 개인정보처리방침(`/privacy`), OAuth 제거, Claude 대역 공용 요청 제한
-- [ ] 공개: 배포 확인, 웹 스토어, README (`NEXT.md`)
+- [x] 공개: 웹 스토어 승인(2026-11-09, ID `hbaiomakbjdigmdbljjjoieoblddbohb`), README 설치 안내
+- [x] 스토어 설치본으로 E2E 확인 (2026-11-09)
 - [ ] 2단계: 카테고리 (`categoryId`) → 일반 이미지 → 발행·수정·삭제
 
 ## 고려사항 / 미해결

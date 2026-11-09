@@ -1,6 +1,6 @@
 # 남은 작업 (2026-11-09 기준)
 
-### 2.6 Chrome 웹 스토어 등록 (심사 중, 2026-11-09 제출)
+### 2.6 Chrome 웹 스토어 등록 (2026-11-09 제출, 승인)
 
 - [x] `manifest.template.json`에서 `localhost` 권한을 제거한다. 이제 로컬 서버(`localhost`)에서는 확장 프로그램이 동작하지 않는다.
 - [x] 아이콘(`extension/icons`, `extension/make-icons.py`로 생성)을 `icons`에 넣었다. 남음: 1280×800 스크린샷 1장 이상(미리보기 페이지 저장 버튼 화면)도 준비한다.
@@ -18,6 +18,7 @@
 
 ### 심사 후
 
-- [ ] **승인**: 스토어 URL을 확인하고 `README.md` 설치 안내를 스토어 링크로 바꾼다. 스토어에서 설치한 확장 프로그램으로 링크 → 임시저장을 한 번 확인한다.
-- [ ] **반려**: 사유를 읽고 고친 뒤 새 zip(`npm run ext:pack`)으로 재제출한다. `manifest.json`의 `version`을 올려야 한다.
+- [x] **승인**: 스토어 URL `https://chromewebstore.google.com/detail/mcp-tistory/hbaiomakbjdigmdbljjjoieoblddbohb`, `README.md` 설치 안내를 스토어 링크로 바꿨다.
+- [x] 스토어에서 설치한 확장 프로그램으로 링크 → 임시저장을 확인했다 (2026-11-09).
+- 업데이트 제출: 새 zip(`npm run ext:pack`)을 올린다. `manifest.json`의 `version`을 올려야 한다.
 - [ ] 이후: 2단계(카테고리 `categoryId` → 일반 이미지 → 발행·수정·삭제, `CLAUDE.md` 진행 상황 참고).
