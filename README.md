@@ -8,7 +8,7 @@
 
 ## ✨ 무엇을 하나요
 
-Claude 웹 채팅에서 한 마디로 대화를 블로그 글로 정리해 티스토리 **임시저장**함에 넣습니다.
+Claude 웹 채팅에서 한 마디로 대화를 블로그 글로 정리해 티스토리 **임시저장**함에 넣습니다.<br>
 웹에서 공부한 내용을 매번 같은 깔끔한 서식(목차, 강조 박스, 다이어그램, 태그)으로 블로그에 쌓을 수 있습니다.
 
 > 💬 "이 대화를 티스토리에 임시저장해줘"
@@ -22,19 +22,19 @@ Claude 웹 채팅에서 한 마디로 대화를 블로그 글로 정리해 티�
 <table>
 <tr><td align="center">
 <b>목차</b> · 대주제·소주제 제목으로 자동 생성<br><br>
-<img src="docs/images/example-toc.png" alt="파란 두 자리 번호와 굵은 대주제, 들여쓴 소주제로 된 목차" width="620">
+<img src="docs/images/example-toc.png" alt="파란 두 자리 번호와 굵은 대주제, 들여쓴 소주제로 된 목차" width="398">
 </td></tr>
 <tr><td align="center">
 <b>다이어그램</b> · Claude가 그린 SVG를 이미지로 자동 첨부 (최대 5개)<br><br>
-<img src="docs/images/example-diagram.png" alt="클라이언트, 통신 구간, 서버와 각각 확인할 곳을 잇는 다이어그램" width="620">
+<img src="docs/images/example-diagram.png" alt="클라이언트, 통신 구간, 서버와 각각 확인할 곳을 잇는 다이어그램" width="860">
 </td></tr>
 <tr><td align="center">
 <b>강조 박스</b> · 참고 · 핵심 개념 · 주의 · 왜? · 결론<br><br>
-<img src="docs/images/example-boxes.png" alt="노랑 참고, 파랑 핵심 개념, 빨강 주의, 회색 왜, 초록 결론 박스" width="620">
+<img src="docs/images/example-boxes.png" alt="노랑 참고, 파랑 핵심 개념, 빨강 주의, 회색 왜, 초록 결론 박스" width="860">
 </td></tr>
 <tr><td align="center">
 <b>태그</b> · 글 내용에 맞춰 자동으로 붙음<br><br>
-<img src="docs/images/example-tags.png" alt="글 하단의 태그 목록" width="620">
+<img src="docs/images/example-tags.png" alt="글 하단의 태그 목록" width="860">
 </td></tr>
 </table>
 
@@ -48,12 +48,13 @@ Claude 웹 채팅에서 한 마디로 대화를 블로그 글로 정리해 티�
 
 ### 1. Chrome 확장 프로그램 설치
 
-[Chrome 웹 스토어](https://chromewebstore.google.com/detail/mcp-tistory/hbaiomakbjdigmdbljjjoieoblddbohb)에서 **Chrome에 추가**를 누릅니다.
+[Chrome 웹 스토어(MCP-Tistory)](https://chromewebstore.google.com/detail/mcp-tistory/hbaiomakbjdigmdbljjjoieoblddbohb)에서 **Chrome에 추가**를 누릅니다.
 
 ### 2. Claude 웹에 연결
 
 1. Claude 웹 → **설정 → 커넥터 → 커스텀 커넥터 추가**
-2. URL에 `https://mcp-tistory-production.up.railway.app/mcp` 입력. 인증 설정은 비워 둡니다.
+2. MCP 서버 URL에 `https://mcp-tistory-production.up.railway.app/mcp` 입력. 
+3. 인증 설정 : 로그인 없음 
 
 ## ✍️ 사용법
 
@@ -83,5 +84,5 @@ Claude 웹 채팅에서 한 마디로 대화를 블로그 글로 정리해 티�
 
 ## ⚠️ 알아 둘 점
 
-티스토리 비공식 기능을 쓰는 개인 프로젝트라 예고 없이 동작하지 않을 수 있습니다. 
+티스토리 비공식 기능을 쓰는 개인 프로젝트라 예고 없이 동작하지 않을 수 있습니다.<br>
 [개인정보처리방침] : https://mcp-tistory-production.up.railway.app/privacy
