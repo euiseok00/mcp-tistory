@@ -2,19 +2,28 @@
 
 export const BLOG_NAME = /^[a-z0-9-]+$/i;
 
-/** POST /manage/drafts 응답 분류. redirect: 'manual'이면 로그인 redirect는 status 0의 opaqueredirect로 온다. */
-export function classifyDraft(type, status, body) {
-  if (type === 'opaqueredirect' || status === 401 || status === 403) return { ok: false, errorCode: 'SESSION_EXPIRED' };
+const fail = (errorCode) => ({ ok: false, errorCode });
+
+/** drafts·attach.json 공통 검사. 실패하면 {fail}, 통과하면 {json}. redirect: 'manual'이면 로그인 redirect는 status 0의 opaqueredirect로 온다. */
+function checkResponse(type, status, body) {
+  if (type === 'opaqueredirect' || status === 401 || status === 403) return { fail: fail('SESSION_EXPIRED') };
   let json;
   try {
     json = JSON.parse(body);
   } catch {
     // 200인데 JSON이 아니면 로그인 HTML 페이지일 가능성이 높다
-    if (status === 200) return { ok: false, errorCode: 'SESSION_EXPIRED' };
+    if (status === 200) return { fail: fail('SESSION_EXPIRED') };
   }
-  if (status >= 400 && status < 500) return { ok: false, errorCode: 'TISTORY_REJECTED' };
-  if (status !== 200) return { ok: false, errorCode: 'UNKNOWN' };
-  if (json?.success !== true || typeof json.draft?.sequence !== 'number') return { ok: false, errorCode: 'TISTORY_REJECTED' };
+  if (status >= 400 && status < 500) return { fail: fail('TISTORY_REJECTED') };
+  if (status !== 200) return { fail: fail('UNKNOWN') };
+  return { json };
+}
+
+/** POST /manage/drafts 응답 분류. */
+export function classifyDraft(type, status, body) {
+  const { fail: failed, json } = checkResponse(type, status, body);
+  if (failed) return failed;
+  if (json?.success !== true || typeof json.draft?.sequence !== 'number') return fail('TISTORY_REJECTED');
   return { ok: true, draftId: json.draft.sequence };
 }
 
@@ -36,18 +45,11 @@ export function parseBlogs(type, status, body) {
 
 /** POST /manage/post/attach.json 응답 분류. key·filename은 치환자에 그대로 들어가므로 구분자(|, _##])가 없는지 확인한다. */
 export function classifyUpload(type, status, body) {
-  if (type === 'opaqueredirect' || status === 401 || status === 403) return { ok: false, errorCode: 'SESSION_EXPIRED' };
-  let json;
-  try {
-    json = JSON.parse(body);
-  } catch {
-    if (status === 200) return { ok: false, errorCode: 'SESSION_EXPIRED' };
-  }
-  if (status >= 400 && status < 500) return { ok: false, errorCode: 'TISTORY_REJECTED' };
-  if (status !== 200) return { ok: false, errorCode: 'UNKNOWN' };
+  const { fail: failed, json } = checkResponse(type, status, body);
+  if (failed) return failed;
   if (typeof json?.key !== 'string' || !/^[\w-]+(\/[\w-]+)*$/.test(json.key) ||
       typeof json.filename !== 'string' || !/^[\w-]+\.\w+$/.test(json.filename)) {
-    return { ok: false, errorCode: 'TISTORY_REJECTED' };
+    return fail('TISTORY_REJECTED');
   }
   return { ok: true, key: json.key, filename: json.filename };
 }

@@ -6,7 +6,7 @@ import type { JobStore } from './jobs.js';
 export const TITLE_MAX = 50;
 export const CONTENT_MAX = 50_000;
 export const TAGS_MAX = 5;
-export const TAG_LEN_MAX = 30;
+const TAG_LEN_MAX = 30;
 
 const DESCRIPTION = `현재 대화(또는 사용자가 지정한 구간)를 정리해 티스토리 임시저장용 일회용 링크를 만든다. 발행하지 않는다.
 이 도구만으로는 저장되지 않는다. 사용자가 링크를 열어 미리보기를 확인하고 임시저장 버튼을 눌러야 저장된다. 호출 후 반환된 url을 클릭 가능한 링크로 안내하고, 저장 완료라고 말하지 않는다. 링크는 expiresAt까지 유효하다.
@@ -54,7 +54,7 @@ export type WritePostResult =
   | { ok: true; url: string; expiresAt: string; title: string; tags: string[] }
   | { ok: false; errorCode: ErrorCode; message: string };
 
-export function validateInput(title: string, content: string): string | undefined {
+function validateInput(title: string, content: string): string | undefined {
   const t = title.trim();
   if (t.length < 1 || t.length > TITLE_MAX) return `title은 1~${TITLE_MAX}자여야 합니다 (현재 ${t.length}자).`;
   if (/[\r\n]/.test(t)) return 'title은 한 줄이어야 합니다.';
@@ -64,7 +64,7 @@ export function validateInput(title: string, content: string): string | undefine
 }
 
 /** 앞뒤 공백을 지우고 중복을 뺀 태그 목록, 또는 오류 메시지 */
-export function normalizeTags(tags: string[]): string[] | string {
+function normalizeTags(tags: string[]): string[] | string {
   const clean = [...new Set(tags.map((t) => t.trim().replace(/^#/, '')))];
   if (clean.length < 1 || clean.length > TAGS_MAX) return `tags는 1~${TAGS_MAX}개여야 합니다 (현재 ${clean.length}개).`;
   // 티스토리는 tags를 쉼표로 구분한 한 문자열로 받는다
@@ -74,7 +74,7 @@ export function normalizeTags(tags: string[]): string[] | string {
 }
 
 /** 변환된 HTML의 다이어그램 개수와 규칙 위반을 검사한다. 위반 SVG는 코드블록(language-svg)으로 남는다. */
-export function validateDiagrams(html: string): string | undefined {
+function validateDiagrams(html: string): string | undefined {
   const broken = html.match(/<code class="language-svg">/g)?.length ?? 0;
   if (broken) return `svg 코드블록 ${broken}개가 다이어그램 규칙에 맞지 않습니다. <svg>로 시작해 </svg>로 끝나는 하나의 올바른 XML이어야 합니다: 모든 태그를 닫고(<rect/> 또는 </text>), 속성값은 따옴표로 감싸고, 글자 안의 < >는 &lt; &gt;로 쓰고(예: List&lt;String&gt;), foreignObject는 쓰지 않습니다. 고쳐서 다시 호출하세요.`;
   const count = html.match(/<img data-mcp-svg /g)?.length ?? 0;

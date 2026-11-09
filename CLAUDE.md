@@ -10,6 +10,7 @@ npm run dev     # .env 읽어 로컬 실행 (http://localhost:3000)
 npm test        # 단위 테스트 (tsx --test src/*.test.ts)
 npx tsc --noEmit
 npm run ext:config # .env의 PUBLIC_URL로 extension/manifest.json 생성
+npm run ext:pack   # 웹 스토어 제출용 dist/extension.zip 생성
 ```
 
 CI(`.github/workflows/ci.yml`)는 push마다 `tsc --noEmit` + `npm test`.

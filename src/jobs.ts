@@ -12,7 +12,7 @@ export const TOOL_CALLS_PER_MIN = 10;
 export const PAGE_REQUESTS_PER_MIN = 60;
 // Claude 커넥터 요청은 모든 사용자가 Anthropic 공용 IP에서 온다(2026-11-05 실측 160.79.106.129). IP별로 세면 전원이 10회를 나눠 쓴다.
 // shortcut: Claude 사용자 전체가 이 한도 하나를 공유한다. 한 사람이 다 써 버릴 수 있으니, 사용자가 늘면 사용자 식별(인증)을 붙인다.
-export const CLAUDE_TOOL_CALLS_PER_MIN = 30;
+const CLAUDE_TOOL_CALLS_PER_MIN = 30;
 
 // https://platform.claude.com/docs/en/api/ip-addresses 의 아웃바운드 대역. 바뀌면 공지된다
 const claudeOutbound = new BlockList();
@@ -31,7 +31,7 @@ export interface Job {
   leaseUntil: number;
 }
 
-export const escapeHtml = (s: string) =>
+const escapeHtml = (s: string) =>
   s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
 /** 저장 대기 글. 본문을 디스크에 남기지 않으려고 메모리에만 둔다. */

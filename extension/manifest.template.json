@@ -3,6 +3,7 @@
   "name": "MCP-Tistory",
   "version": "0.1.0",
   "description": "Claude가 만든 글을 확인 후 티스토리에 임시저장합니다. 쿠키를 읽거나 전송하지 않습니다.",
+  "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" },
   "host_permissions": [
     "https://*.tistory.com/*",
     "__SERVER_ORIGIN__/*"
