@@ -164,7 +164,7 @@ export function jobRouter(store: JobStore): Router {
     });
     const job = store.get(req.params.token);
     if (job) return res.type('html').send(previewPage(job));
-    res.status(404).type('html').send(page('링크 만료', '<p role="alert">링크가 만료되었거나 이미 저장되었습니다. Claude에서 다시 요청하세요.</p>'));
+    res.status(404).type('html').send(page('링크 만료', '<p role="alert">링크가 만료되었거나 이미 저장되었습니다. 채팅에서 다시 요청하세요.</p>'));
   });
 
   router.post('/api/jobs/:token/claim', (req, res) => {

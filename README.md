@@ -2,18 +2,18 @@
 
 # 📝 Tistory MCP
 
-**Claude 웹 채팅 내용을 티스토리 블로그 임시저장 글로 바로 보내는 도구**
+**Claude·ChatGPT 웹 채팅 내용을 티스토리 블로그 임시저장 글로 바로 보내는 도구**
 
 </div>
 
 ## ✨ 무엇을 하나요
 
-Claude 웹 채팅에서 한 마디로 대화를 블로그 글로 정리해 티스토리 **임시저장**함에 넣습니다.<br>
+Claude 또는 ChatGPT 웹 채팅에서 한 마디로 대화를 블로그 글로 정리해 티스토리 **임시저장**함에 넣습니다.<br>
 웹에서 공부한 내용을 매번 같은 깔끔한 서식(목차, 강조 박스, 다이어그램, 태그)으로 블로그에 쌓을 수 있습니다.
 
 > 💬 "이 대화를 티스토리에 임시저장해줘"
 
-<p align="center"><img src="docs/images/flow.svg" alt="요청, 정리, 미리보기, 저장, 임시저장함 순서의 5단계 흐름" width="860"></p>
+<p align="center"><img src="docs/images/flow.svg" alt="Claude·ChatGPT가 글을 MCP 서버로 보내고, 링크를 열면 확장 프로그램이 저장 버튼 클릭 시 티스토리 임시저장함에 저장하는 흐름" width="860"></p>
 
 ## 🖼️ 저장 예시
 
@@ -25,7 +25,7 @@ Claude 웹 채팅에서 한 마디로 대화를 블로그 글로 정리해 티�
 <img src="docs/images/example-toc.png" alt="파란 두 자리 번호와 굵은 대주제, 들여쓴 소주제로 된 목차" width="398">
 </td></tr>
 <tr><td align="center">
-<b>다이어그램</b> · Claude가 그린 SVG를 이미지로 자동 첨부 (최대 5개)<br><br>
+<b>다이어그램</b> · AI가 그린 SVG를 이미지로 자동 첨부 (최대 5개)<br><br>
 <img src="docs/images/example-diagram.png" alt="클라이언트, 통신 구간, 서버와 각각 확인할 곳을 잇는 다이어그램" width="860">
 </td></tr>
 <tr><td align="center">
@@ -42,7 +42,7 @@ Claude 웹 채팅에서 한 마디로 대화를 블로그 글로 정리해 티�
 
 ### 준비물
 
-- Claude 계정
+- Claude 또는 ChatGPT 계정
 - PC Chrome
 - 티스토리 블로그, Chrome에서 로그인된 상태
 
@@ -50,11 +50,21 @@ Claude 웹 채팅에서 한 마디로 대화를 블로그 글로 정리해 티�
 
 [Chrome 웹 스토어(MCP-Tistory)](https://chromewebstore.google.com/detail/mcp-tistory/hbaiomakbjdigmdbljjjoieoblddbohb)에서 **Chrome에 추가**를 누릅니다.
 
-### 2. Claude 웹에 연결
+### 2. AI 채팅에 연결
 
-1. Claude 웹 → **설정 → 커넥터 → 커스텀 커넥터 추가**
-2. MCP 서버 URL에 `https://mcp-tistory-production.up.railway.app/mcp` 입력. 
-3. 인증 설정 : 로그인 없음 
+둘 중 쓰는 곳에 등록합니다. MCP 서버 URL은 같습니다: `https://mcp-tistory-production.up.railway.app/mcp`
+
+**Claude 웹**
+
+1. **설정 → 커넥터 → 커스텀 커넥터 추가**
+2. MCP 서버 URL 입력
+3. 인증: 없음
+
+**ChatGPT 웹**
+
+1. **설정 → 앱 → 고급 설정**에서 **개발자 모드**를 켭니다.
+2. **앱 만들기**에서 MCP 서버 URL 입력
+3. 인증: 없음
 
 ## ✍️ 사용법
 
@@ -66,7 +76,7 @@ Claude 웹 채팅에서 한 마디로 대화를 블로그 글로 정리해 티�
 | 구조 지정 | "문제 → 원인 → 해결 순서로 정리해줘" |
 | 다른 글 구조 따라하기 | "https://….tistory.com/10 글 구조를 참고해줘" (공개 글만) |
 
-항상 같은 구조를 원하면 Claude 웹의 프로젝트 지침이나 개인 설정에 적어 두세요.
+항상 같은 구조를 원하면 프로젝트 지침이나 개인 설정(맞춤 지침)에 적어 두세요.
 
 > [!NOTE]
 > 미리보기는 실제 티스토리 블로그와 일부 다르게 보일 수 있습니다. 임시저장한 뒤 티스토리에서 확인하세요.
@@ -75,9 +85,9 @@ Claude 웹 채팅에서 한 마디로 대화를 블로그 글로 정리해 티�
 
 | 증상 | 해결 |
 |---|---|
-| Claude가 도구를 쓰지 않음 | 입력창 도구 메뉴에서 커넥터가 켜져 있는지 확인하세요. 커넥터 등록 전에 열었던 채팅이면 새 채팅에서 요청하세요. |
+| AI가 도구를 쓰지 않음 | 입력창 도구 메뉴에서 커넥터(ChatGPT는 앱)가 켜져 있는지 확인하세요. 등록 전에 열었던 채팅이면 새 채팅에서 요청하세요. |
 | 링크에 설치·로그인 안내가 표시됨 | 확장 프로그램을 켜고 Chrome에서 티스토리에 로그인한 뒤 링크 페이지를 새로고침하세요. |
-| 링크 만료 | 링크는 30분간, 한 번만 쓸 수 있습니다. Claude에 다시 요청하세요. |
+| 링크 만료 | 링크는 30분간, 한 번만 쓸 수 있습니다. 채팅에서 다시 요청하세요. |
 | 저장 실패가 반복됨 | [이슈](https://github.com/euiseok00/mcp-tistory/issues)로 알려 주세요. |
 
 ## ⚠️ 알아 둘 점

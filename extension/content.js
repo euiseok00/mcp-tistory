@@ -2,10 +2,10 @@ const slot = document.getElementById('save-slot');
 const token = location.pathname.split('/')[2];
 
 const MESSAGES = {
-  LINK_EXPIRED: '링크가 만료되었거나 이미 저장되었습니다. Claude에서 다시 요청하세요.',
+  LINK_EXPIRED: '링크가 만료되었거나 이미 저장되었습니다. 채팅에서 다시 요청하세요.',
   IN_PROGRESS: '다른 탭에서 저장 중입니다. 1분 뒤 다시 시도하세요.',
   TISTORY_REJECTED: '티스토리가 저장을 거부했습니다. 잠시 후 다시 시도하세요.',
-  DIAGRAM_FAILED: '다이어그램을 이미지로 바꾸지 못했습니다. Claude에서 다이어그램을 고쳐 다시 요청하세요.',
+  DIAGRAM_FAILED: '다이어그램을 이미지로 바꾸지 못했습니다. 채팅에서 다이어그램을 고쳐 다시 요청하세요.',
   UNKNOWN: '저장하지 못했습니다. 잠시 후 다시 시도하세요.',
 };
 
